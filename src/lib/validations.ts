@@ -1,0 +1,42 @@
+import { z } from 'zod';
+
+// Schedule visit form validation
+export const scheduleVisitSchema = z.object({
+  property_id: z.string().uuid('Invalid property ID'),
+  name: z.string().min(2, 'Name must be at least 2 characters').max(100).trim(),
+  phone: z
+    .string()
+    .regex(/^[6-9]\d{9}$/, 'Invalid Indian phone number (10 digits, starting with 6-9)'),
+  email: z.string().email('Invalid email address').toLowerCase(),
+  preferred_date: z.string().datetime('Invalid date format'),
+  message: z.string().max(500, 'Message too long').optional(),
+});
+
+export type ScheduleVisitInput = z.infer<typeof scheduleVisitSchema>;
+
+// Owner inquiry form validation
+export const ownerInquirySchema = z.object({
+  name: z.string().min(2).max(100).trim(),
+  phone: z.string().regex(/^[6-9]\d{9}$/, 'Invalid Indian phone number'),
+  email: z.string().email().toLowerCase(),
+  property_type: z.enum(['apartment', 'house', 'villa', 'plot'], {
+    errorMap: () => ({ message: 'Please select a property type' }),
+  }),
+  city: z.enum(['Nellore', 'Guntur', 'Vijayawada', 'Tirupati'], {
+    errorMap: () => ({ message: 'Please select a city' }),
+  }),
+  message: z.string().min(10).max(500),
+});
+
+export type OwnerInquiryInput = z.infer<typeof ownerInquirySchema>;
+
+// Property search filters validation
+export const propertySearchSchema = z.object({
+  city: z.string().optional(),
+  bhk: z.number().int().min(1).max(5).optional(),
+  min_rent: z.number().int().min(0).optional(),
+  max_rent: z.number().int().min(0).optional(),
+  property_type: z.string().optional(),
+});
+
+export type PropertySearchInput = z.infer<typeof propertySearchSchema>;
