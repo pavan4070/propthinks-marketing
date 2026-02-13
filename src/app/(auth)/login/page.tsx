@@ -3,24 +3,41 @@
 import { useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { Eye, EyeOff, Mail, Lock, ArrowRight } from 'lucide-react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { Eye, EyeOff, Mail, Lock, ArrowRight, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function LoginPage() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const { login } = useAuth();
+  
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [formData, setFormData] = useState({
+    email: '',
+    password: '',
+  });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
+    setError(null);
     
-    // Simulate login - in production, this would redirect to app.propthinks.com
-    setTimeout(() => {
+    try {
+      await login(formData.email, formData.password);
+      
+      // Redirect to return URL if provided, otherwise to homepage
+      const returnUrl = searchParams.get('return') || '/';
+      router.push(returnUrl);
+    } catch (err: any) {
+      setError(err.message || 'Login failed. Please check your credentials.');
+    } finally {
       setIsLoading(false);
-      // Redirect to the app
-      window.location.href = 'https://app.propthinks.com';
-    }, 1500);
+    }
   };
 
   return (
@@ -46,6 +63,13 @@ export default function LoginPage() {
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-6">
+            {error && (
+              <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-start gap-3">
+                <AlertCircle className="h-5 w-5 text-red-500 flex-shrink-0 mt-0.5" />
+                <p className="text-sm text-red-700">{error}</p>
+              </div>
+            )}
+
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
                 Email address
@@ -59,6 +83,8 @@ export default function LoginPage() {
                   className="pl-10"
                   autoComplete="email"
                   required
+                  value={formData.email}
+                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                 />
               </div>
             </div>
@@ -76,6 +102,8 @@ export default function LoginPage() {
                   className="pl-10 pr-10"
                   autoComplete="current-password"
                   required
+                  value={formData.password}
+                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                 />
                 <button
                   type="button"

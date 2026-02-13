@@ -3,25 +3,78 @@
 import { useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { Eye, EyeOff, Mail, Lock, User, Phone, ArrowRight, CheckCircle } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { Eye, EyeOff, Mail, Lock, User, Phone, ArrowRight, CheckCircle, AlertCircle, MapPin } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { useAuth } from '@/contexts/AuthContext';
+import { requestOTP } from '@/lib/api';
 
 export default function SignupPage() {
+  const router = useRouter();
+  const { signup } = useAuth();
+  
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [step, setStep] = useState<'form' | 'success'>('form');
+  const [step, setStep] = useState<'form' | 'otp' | 'success'>('form');
+  const [error, setError] = useState<string | null>(null);
   const [userType, setUserType] = useState<'tenant' | 'owner'>('tenant');
+  const [formData, setFormData] = useState({
+    firstName: '',
+    lastName: '',
+    email: '',
+    phone: '',
+    city: '',
+    state: 'Andhra Pradesh',
+    password: '',
+    otpCode: '',
+  });
+
+  const handleRequestOTP = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+    setError(null);
+    
+    try {
+      await requestOTP({ email: formData.email, purpose: 'signup' });
+      setStep('otp');
+    } catch (err: any) {
+      setError(err.response?.data?.detail || 'Failed to send OTP. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
+    setError(null);
     
-    // Simulate signup
-    setTimeout(() => {
-      setIsLoading(false);
+    try {
+      const fullName = `${formData.firstName.trim()} ${formData.lastName.trim()}`;
+      
+      await signup(
+        formData.email,
+        formData.password,
+        fullName,
+        formData.phone,
+        userType,
+        formData.city,
+        formData.state,
+        formData.otpCode
+      );
+      
       setStep('success');
-    }, 1500);
+      
+      // Redirect to homepage after 2 seconds
+      setTimeout(() => {
+        router.push('/');
+      }, 2000);
+    } catch (err: any) {
+      setError(err.message || 'Signup failed. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   if (step === 'success') {
@@ -34,18 +87,94 @@ export default function SignupPage() {
             </div>
             <h2 className="text-2xl font-bold text-gray-900 mb-2">Account Created!</h2>
             <p className="text-gray-600 mb-6">
-              Please check your email to verify your account. Once verified, you can log in and 
-              {userType === 'tenant' ? ' start searching for your perfect home.' : ' list your properties.'}
+              Welcome to PropThinks! Your account has been successfully created and you're now logged in.
+              {userType === 'tenant' ? ' Start searching for your perfect home.' : ' You can now list your properties.'}
             </p>
-            <Link href="/login">
-              <Button className="w-full bg-[#1fb6e0] hover:bg-[#1fb6e0]/90 text-white">
-                Go to Login
+            <Button 
+              onClick={() => router.push('/')}
+              className="w-full bg-[#1fb6e0] hover:bg-[#1fb6e0]/90 text-white"
+            >
+              Go to Homepage
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (step === 'otp') {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4">
+        <div className="max-w-md w-full">
+          <div className="bg-white rounded-2xl shadow-lg p-8">
+            <div className="mb-6">
+              <Link href="/" className="inline-block">
+                <Image
+                  src="/brand/logo-primary.png"
+                  alt="PropThinks"
+                  width={220}
+                  height={56}
+                  priority
+                  className="h-10 w-auto"
+                />
+              </Link>
+              <h2 className="mt-6 text-2xl font-bold text-gray-900">Verify Your Email</h2>
+              <p className="mt-2 text-gray-600">
+                We've sent a 6-digit code to <strong>{formData.email}</strong>
+              </p>
+            </div>
+
+            {error && (
+              <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-start gap-3 mb-4">
+                <AlertCircle className="h-5 w-5 text-red-500 flex-shrink-0 mt-0.5" />
+                <p className="text-sm text-red-700">{error}</p>
+              </div>
+            )}
+
+            <form onSubmit={handleSubmit} className="space-y-5">
+              <div>
+                <label htmlFor="otp" className="block text-sm font-medium text-gray-700 mb-1">
+                  Verification Code
+                </label>
+                <Input
+                  id="otp"
+                  type="text"
+                  placeholder="Enter 6-digit code"
+                  maxLength={6}
+                  required
+                  value={formData.otpCode}
+                  onChange={(e) => setFormData({ ...formData, otpCode: e.target.value })}
+                  className="text-center text-2xl tracking-widest"
+                />
+              </div>
+
+              <Button
+                type="submit"
+                className="w-full bg-[#1fb6e0] hover:bg-[#1fb6e0]/90 text-white"
+                disabled={isLoading || formData.otpCode.length !== 6}
+              >
+                {isLoading ? 'Verifying...' : 'Verify and Create Account'}
               </Button>
-            </Link>
-            <p className="mt-4 text-sm text-gray-500">
-              Didn't receive an email?{' '}
-              <button className="text-[#1fb6e0] hover:underline">Resend verification</button>
-            </p>
+
+              <div className="text-center">
+                <button
+                  type="button"
+                  onClick={() => setStep('form')}
+                  className="text-sm text-gray-500 hover:text-gray-700"
+                >
+                  ← Back to form
+                </button>
+                <span className="mx-2 text-gray-300">|</span>
+                <button
+                  type="button"
+                  onClick={handleRequestOTP}
+                  disabled={isLoading}
+                  className="text-sm text-[#1fb6e0] hover:underline disabled:opacity-50"
+                >
+                  Resend code
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       </div>
@@ -131,19 +260,40 @@ export default function SignupPage() {
             </div>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-5">
+          <form onSubmit={handleRequestOTP} className="space-y-5">
+            {error && (
+              <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-start gap-3">
+                <AlertCircle className="h-5 w-5 text-red-500 flex-shrink-0 mt-0.5" />
+                <p className="text-sm text-red-700">{error}</p>
+              </div>
+            )}
+
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label htmlFor="firstName" className="block text-sm font-medium text-gray-700 mb-1">
                   First name
                 </label>
-                <Input id="firstName" placeholder="John" autoComplete="given-name" required />
+                <Input 
+                  id="firstName" 
+                  placeholder="John" 
+                  autoComplete="given-name" 
+                  required
+                  value={formData.firstName}
+                  onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
+                />
               </div>
               <div>
                 <label htmlFor="lastName" className="block text-sm font-medium text-gray-700 mb-1">
                   Last name
                 </label>
-                <Input id="lastName" placeholder="Doe" autoComplete="family-name" required />
+                <Input 
+                  id="lastName" 
+                  placeholder="Doe" 
+                  autoComplete="family-name" 
+                  required
+                  value={formData.lastName}
+                  onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
+                />
               </div>
             </div>
 
@@ -160,6 +310,8 @@ export default function SignupPage() {
                   className="pl-10"
                   autoComplete="email"
                   required
+                  value={formData.email}
+                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                 />
               </div>
             </div>
@@ -173,10 +325,47 @@ export default function SignupPage() {
                 <Input
                   id="phone"
                   type="tel"
-                  placeholder="+91 98765 43210"
+                  placeholder="9876543210"
                   className="pl-10"
                   autoComplete="tel"
                   required
+                  value={formData.phone}
+                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label htmlFor="city" className="block text-sm font-medium text-gray-700 mb-1">
+                  City
+                </label>
+                <div className="relative">
+                  <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+                  <select
+                    id="city"
+                    required
+                    value={formData.city}
+                    onChange={(e) => setFormData({ ...formData, city: e.target.value })}
+                    className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#1fb6e0] focus:border-transparent"
+                  >
+                    <option value="">Select city</option>
+                    <option value="Nellore">Nellore</option>
+                    <option value="Guntur">Guntur</option>
+                    <option value="Vijayawada">Vijayawada</option>
+                    <option value="Tirupati">Tirupati</option>
+                  </select>
+                </div>
+              </div>
+              <div>
+                <label htmlFor="state" className="block text-sm font-medium text-gray-700 mb-1">
+                  State
+                </label>
+                <Input
+                  id="state"
+                  value="Andhra Pradesh"
+                  disabled
+                  className="bg-gray-50"
                 />
               </div>
             </div>
@@ -194,6 +383,8 @@ export default function SignupPage() {
                   className="pl-10 pr-10"
                   autoComplete="new-password"
                   required
+                  value={formData.password}
+                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                 />
                 <button
                   type="button"
@@ -233,10 +424,10 @@ export default function SignupPage() {
               disabled={isLoading}
             >
               {isLoading ? (
-                'Creating account...'
+                'Sending verification code...'
               ) : (
                 <>
-                  Create account
+                  Continue with Email Verification
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </>
               )}

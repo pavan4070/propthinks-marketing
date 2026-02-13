@@ -3,15 +3,16 @@
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { notFound, useParams } from 'next/navigation';
-import { ArrowLeft, Bath, BedDouble, ChevronLeft, ChevronRight, Home, MapPin, Phone, MessageCircle, Mail, Check, Calendar, Sofa, Building2, Loader2 } from 'lucide-react';
+import { notFound, useParams, useRouter } from 'next/navigation';
+import { ArrowLeft, Bath, BedDouble, ChevronLeft, ChevronRight, Home, MapPin, Phone, MessageCircle, Mail, Check, Calendar, Sofa, Building2, Loader2, AlertCircle, LogIn } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { getPropertyById, mockProperties } from '@/data/mock-properties';
-import { getListingDetail, getScheduleVisitUrl, type PropertyListing } from '@/lib/api';
+import { getListingDetail, schedulePropertyVisit, type PropertyListing } from '@/lib/api';
 import type { Property } from '@/types/property';
 import { siteConfig } from '@/config/site';
+import { useAuth } from '@/contexts/AuthContext';
 
 // Supabase storage base URL for property photos
 const SUPABASE_STORAGE_URL = 'https://vlyxfxkhpqtabrmbmsxu.supabase.co/storage/v1/object/public/property-photos';
@@ -93,7 +94,9 @@ function normalizeProperty(data: PropertyListing | Property): NormalizedProperty
 
 export default function PropertyDetailPage() {
   const params = useParams();
+  const router = useRouter();
   const propertyId = params.id as string;
+  const { isAuthenticated, user } = useAuth();
   
   const [property, setProperty] = useState<NormalizedProperty | null>(null);
   const [loading, setLoading] = useState(true);
@@ -101,7 +104,16 @@ export default function PropertyDetailPage() {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [contactMethod, setContactMethod] = useState<'phone' | 'whatsapp' | 'email'>('phone');
   const [formSubmitted, setFormSubmitted] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [similarProperties, setSimilarProperties] = useState<Property[]>([]);
+  const [listingData, setListingData] = useState<PropertyListing | null>(null);
+  
+  const [visitForm, setVisitForm] = useState({
+    name: user?.full_name || '',
+    contact: '',
+    message: '',
+  });
 
   useEffect(() => {
     async function fetchProperty() {
@@ -111,6 +123,7 @@ export default function PropertyDetailPage() {
       try {
         // Try fetching from API first
         const listing = await getListingDetail(propertyId);
+        setListingData(listing); // Store for visit scheduling
         setProperty(normalizeProperty(listing));
         
         // Get similar properties from mock data for now
@@ -141,6 +154,13 @@ export default function PropertyDetailPage() {
     fetchProperty();
   }, [propertyId]);
 
+  // Update form when user logs in
+  useEffect(() => {
+    if (user?.full_name) {
+      setVisitForm(prev => ({ ...prev, name: user.full_name }));
+    }
+  }, [user]);
+
   const nextImage = () => {
     if (!property) return;
     setCurrentImageIndex((prev) => (prev + 1) % property.images.length);
@@ -151,11 +171,47 @@ export default function PropertyDetailPage() {
     setCurrentImageIndex((prev) => (prev - 1 + property.images.length) % property.images.length);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // For now, redirect to authenticated app for proper visit scheduling
-    const scheduleUrl = getScheduleVisitUrl(propertyId);
-    window.open(scheduleUrl, '_blank');
+    
+    if (!isAuthenticated) {
+      // Redirect to login with return URL
+      router.push(`/login?return=/properties/${propertyId}`);
+      return;
+    }
+    
+    if (!listingData) {
+      setSubmitError('Property listing data not available');
+      return;
+    }
+    
+    setIsSubmitting(true);
+    setSubmitError(null);
+    
+    try {
+      // Parse requested date and time slot from form
+      const today = new Date();
+      const requestedDate = new Date(today);
+      requestedDate.setDate(today.getDate() + 2); // Schedule 2 days from now
+      
+      await schedulePropertyVisit({
+        property_id: listingData.property_id,
+        visit_type: 'rental',
+        listing_id: listingData.id,
+        requested_date: requestedDate.toISOString().split('T')[0],
+        requested_time_slot: visitForm.message || 'Morning (10 AM - 12 PM)',
+        visitor_phone: visitForm.contact,
+        visitor_notes: visitForm.message,
+      });
+      
+      setFormSubmitted(true);
+      setVisitForm({ name: user?.full_name || '', contact: '', message: '' });
+    } catch (err: any) {
+      console.error('Failed to schedule visit:', err);
+      setSubmitError(err.response?.data?.detail || 'Failed to schedule visit. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   // Loading state
@@ -361,104 +417,164 @@ export default function PropertyDetailPage() {
                     Interested in this property? Let us know and we'll arrange a visit for you.
                   </p>
 
-                  <form onSubmit={handleSubmit} className="space-y-4">
-                    <div>
-                      <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
-                        Your Name
-                      </label>
-                      <Input id="name" placeholder="Enter your name" required />
-                    </div>
-
-                    {/* Contact Method Selection */}
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        How should we contact you?
-                      </label>
-                      <div className="grid grid-cols-3 gap-2">
-                        <button
-                          type="button"
-                          onClick={() => setContactMethod('phone')}
-                          className={`flex flex-col items-center justify-center p-3 rounded-lg border-2 transition-colors ${
-                            contactMethod === 'phone'
-                              ? 'border-[#1fb6e0] bg-[#1fb6e0]/5 text-[#1fb6e0]'
-                              : 'border-gray-200 text-gray-500 hover:border-gray-300'
-                          }`}
-                        >
-                          <Phone className="h-5 w-5 mb-1" />
-                          <span className="text-xs font-medium">Phone</span>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setContactMethod('whatsapp')}
-                          className={`flex flex-col items-center justify-center p-3 rounded-lg border-2 transition-colors ${
-                            contactMethod === 'whatsapp'
-                              ? 'border-[#1fb6e0] bg-[#1fb6e0]/5 text-[#1fb6e0]'
-                              : 'border-gray-200 text-gray-500 hover:border-gray-300'
-                          }`}
-                        >
-                          <MessageCircle className="h-5 w-5 mb-1" />
-                          <span className="text-xs font-medium">WhatsApp</span>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setContactMethod('email')}
-                          className={`flex flex-col items-center justify-center p-3 rounded-lg border-2 transition-colors ${
-                            contactMethod === 'email'
-                              ? 'border-[#1fb6e0] bg-[#1fb6e0]/5 text-[#1fb6e0]'
-                              : 'border-gray-200 text-gray-500 hover:border-gray-300'
-                          }`}
-                        >
-                          <Mail className="h-5 w-5 mb-1" />
-                          <span className="text-xs font-medium">Email</span>
-                        </button>
+                  {!isAuthenticated ? (
+                    <div className="text-center py-8">
+                      <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <LogIn className="h-8 w-8 text-[#1fb6e0]" />
                       </div>
+                      <h3 className="text-lg font-semibold text-gray-900 mb-2">Login Required</h3>
+                      <p className="text-gray-500 text-sm mb-4">
+                        Please login or create an account to schedule a property visit.
+                      </p>
+                      <Button
+                        onClick={() => router.push(`/login?return=/properties/${propertyId}`)}
+                        className="w-full bg-[#1fb6e0] hover:bg-[#1fb6e0]/90 text-white mb-2"
+                      >
+                        Login to Schedule Visit
+                      </Button>
+                      <p className="text-xs text-gray-400 mt-2">
+                        Don't have an account?{' '}
+                        <Link href="/signup" className="text-[#1fb6e0] hover:underline">
+                          Sign up here
+                        </Link>
+                      </p>
                     </div>
+                  ) : (
+                    <form onSubmit={handleSubmit} className="space-y-4">
+                      {submitError && (
+                        <div className="bg-red-50 border border-red-200 rounded-lg p-3 flex items-start gap-2">
+                          <AlertCircle className="h-4 w-4 text-red-500 flex-shrink-0 mt-0.5" />
+                          <p className="text-xs text-red-700">{submitError}</p>
+                        </div>
+                      )}
 
-                    {/* Contact Input */}
-                    <div>
-                      <label htmlFor="contact" className="block text-sm font-medium text-gray-700 mb-1">
-                        {contactMethod === 'phone' && 'Phone Number'}
-                        {contactMethod === 'whatsapp' && 'WhatsApp Number'}
-                        {contactMethod === 'email' && 'Email Address'}
-                      </label>
-                      <Input
-                        id="contact"
-                        type={contactMethod === 'email' ? 'email' : 'tel'}
-                        placeholder={
-                          contactMethod === 'phone' || contactMethod === 'whatsapp'
-                            ? 'Enter your phone number'
-                            : 'Enter your email address'
-                        }
-                        required
-                      />
-                    </div>
+                      <div>
+                        <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
+                          Your Name
+                        </label>
+                        <Input 
+                          id="name" 
+                          placeholder="Enter your name" 
+                          required 
+                          value={visitForm.name}
+                          onChange={(e) => setVisitForm({ ...visitForm, name: e.target.value })}
+                          disabled={isSubmitting}
+                        />
+                      </div>
 
-                    <div>
-                      <label htmlFor="message" className="block text-sm font-medium text-gray-700 mb-1">
-                        Message (Optional)
-                      </label>
-                      <Textarea
-                        id="message"
-                        placeholder="Any specific questions or preferred visit time?"
-                        rows={3}
-                      />
-                    </div>
+                      {/* Contact Method Selection */}
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          How should we contact you?
+                        </label>
+                        <div className="grid grid-cols-3 gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setContactMethod('phone')}
+                            disabled={isSubmitting}
+                            className={`flex flex-col items-center justify-center p-3 rounded-lg border-2 transition-colors ${
+                              contactMethod === 'phone'
+                                ? 'border-[#1fb6e0] bg-[#1fb6e0]/5 text-[#1fb6e0]'
+                                : 'border-gray-200 text-gray-500 hover:border-gray-300'
+                            } disabled:opacity-50`}
+                          >
+                            <Phone className="h-5 w-5 mb-1" />
+                            <span className="text-xs font-medium">Phone</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setContactMethod('whatsapp')}
+                            disabled={isSubmitting}
+                            className={`flex flex-col items-center justify-center p-3 rounded-lg border-2 transition-colors ${
+                              contactMethod === 'whatsapp'
+                                ? 'border-[#1fb6e0] bg-[#1fb6e0]/5 text-[#1fb6e0]'
+                                : 'border-gray-200 text-gray-500 hover:border-gray-300'
+                            } disabled:opacity-50`}
+                          >
+                            <MessageCircle className="h-5 w-5 mb-1" />
+                            <span className="text-xs font-medium">WhatsApp</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setContactMethod('email')}
+                            disabled={isSubmitting}
+                            className={`flex flex-col items-center justify-center p-3 rounded-lg border-2 transition-colors ${
+                              contactMethod === 'email'
+                                ? 'border-[#1fb6e0] bg-[#1fb6e0]/5 text-[#1fb6e0]'
+                                : 'border-gray-200 text-gray-500 hover:border-gray-300'
+                            } disabled:opacity-50`}
+                          >
+                            <Mail className="h-5 w-5 mb-1" />
+                            <span className="text-xs font-medium">Email</span>
+                          </button>
+                        </div>
+                      </div>
 
-                    <Button type="submit" className="w-full bg-[#1fb6e0] hover:bg-[#1fb6e0]/90 text-white">
-                      Request Visit
-                    </Button>
-                  </form>
+                      {/* Contact Input */}
+                      <div>
+                        <label htmlFor="contact" className="block text-sm font-medium text-gray-700 mb-1">
+                          {contactMethod === 'phone' && 'Phone Number'}
+                          {contactMethod === 'whatsapp' && 'WhatsApp Number'}
+                          {contactMethod === 'email' && 'Email Address'}
+                        </label>
+                        <Input
+                          id="contact"
+                          type={contactMethod === 'email' ? 'email' : 'tel'}
+                          placeholder={
+                            contactMethod === 'phone' || contactMethod === 'whatsapp'
+                              ? 'Enter your phone number'
+                              : 'Enter your email address'
+                          }
+                          required
+                          value={visitForm.contact}
+                          onChange={(e) => setVisitForm({ ...visitForm, contact: e.target.value })}
+                          disabled={isSubmitting}
+                        />
+                      </div>
 
-                  <p className="text-xs text-gray-400 text-center mt-4">
-                    By submitting, you agree to our{' '}
-                    <Link href="/terms" className="text-[#1fb6e0] hover:underline">
-                      Terms
-                    </Link>{' '}
-                    and{' '}
-                    <Link href="/privacy" className="text-[#1fb6e0] hover:underline">
-                      Privacy Policy
-                    </Link>
-                  </p>
+                      <div>
+                        <label htmlFor="message" className="block text-sm font-medium text-gray-700 mb-1">
+                          Message (Optional)
+                        </label>
+                        <Textarea
+                          id="message"
+                          placeholder="Any specific questions or preferred visit time?"
+                          rows={3}
+                          value={visitForm.message}
+                          onChange={(e) => setVisitForm({ ...visitForm, message: e.target.value })}
+                          disabled={isSubmitting}
+                        />
+                      </div>
+
+                      <Button 
+                        type="submit" 
+                        className="w-full bg-[#1fb6e0] hover:bg-[#1fb6e0]/90 text-white"
+                        disabled={isSubmitting}
+                      >
+                        {isSubmitting ? (
+                          <>
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            Submitting...
+                          </>
+                        ) : (
+                          'Request Visit'
+                        )}
+                      </Button>
+                    </form>
+                  )}
+
+                  {isAuthenticated && (
+                    <p className="text-xs text-gray-400 text-center mt-4">
+                      By submitting, you agree to our{' '}
+                      <Link href="/terms" className="text-[#1fb6e0] hover:underline">
+                        Terms
+                      </Link>{' '}
+                      and{' '}
+                      <Link href="/privacy" className="text-[#1fb6e0] hover:underline">
+                        Privacy Policy
+                      </Link>
+                    </p>
+                  )}
                 </>
               ) : (
                 <div className="text-center py-8">

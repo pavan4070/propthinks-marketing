@@ -15,6 +15,20 @@ export const api = axios.create({
   },
 });
 
+// Request interceptor to add auth token
+api.interceptors.request.use(
+  (config) => {
+    if (typeof window !== 'undefined') {
+      const token = localStorage.getItem('propthinks_access_token');
+      if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
+      }
+    }
+    return config;
+  },
+  (error) => Promise.reject(error)
+);
+
 // Response interceptor for error handling
 api.interceptors.response.use(
   (response) => response,
@@ -193,8 +207,7 @@ export async function submitOwnerInquiry(data: OwnerInquiryData): Promise<{ succ
 
 /**
  * Schedule a property visit
- * Note: For unauthenticated users, this stores the request locally.
- * Full visit scheduling requires authentication via app.propthinks.com
+ * Note: Requires authentication. User must be logged in.
  */
 export async function scheduleVisit(data: ScheduleVisitData): Promise<{ success: boolean }> {
   // Log visit request for now (will be sent to backend later)
@@ -206,4 +219,135 @@ export async function scheduleVisit(data: ScheduleVisitData): Promise<{ success:
   // In production, this would POST to backend
   // For now, just return success
   return { success: true };
+}
+
+// =============================================================================
+// AUTHENTICATION (Marketing Site)
+// =============================================================================
+
+export interface LoginRequest {
+  email: string;
+  password: string;
+}
+
+export interface SignupRequest {
+  email: string;
+  password: string;
+  full_name: string;
+  phone: string;
+  role: string;  // "tenant" | "owner"
+  city: string;
+  state: string;
+  otp_code: string;
+}
+
+export interface AuthResponse {
+  access_token: string;
+  token_type: string;
+  expires_in: number;
+  role: string;
+  user: {
+    id: number;
+    email: string;
+    role: string;
+    full_name: string;
+    is_verified: boolean;
+  };
+  profile: Record<string, any>;
+  message: string;
+}
+
+export interface OTPRequest {
+  email: string;
+  purpose: 'signup' | 'password_reset';
+}
+
+export interface OTPResponse {
+  success: boolean;
+  message: string;
+}
+
+/**
+ * Request OTP for email verification
+ */
+export async function requestOTP(data: OTPRequest): Promise<OTPResponse> {
+  const { data: response } = await api.post<OTPResponse>('/verification/send', data);
+  return response;
+}
+
+/**
+ * User login
+ */
+export async function login(credentials: LoginRequest): Promise<AuthResponse> {
+  const { data } = await api.post<AuthResponse>('/auth/login', credentials, {
+    withCredentials: true, // Include cookies for refresh token
+  });
+  return data;
+}
+
+/**
+ * User signup (tenant/owner)
+ */
+export async function signup(signupData: SignupRequest): Promise<AuthResponse> {
+  const { data } = await api.post<AuthResponse>('/auth/signup', signupData, {
+    withCredentials: true, // Include cookies for refresh token
+  });
+  return data;
+}
+
+/**
+ * User logout
+ */
+export async function logout(): Promise<void> {
+  try {
+    await api.post('/auth/logout', {}, {
+      withCredentials: true,
+    });
+  } catch (error) {
+    console.error('Logout error:', error);
+    // Continue with local logout even if API call fails
+  }
+}
+
+// =============================================================================
+// AUTHENTICATED PROPERTY VISITS
+// =============================================================================
+
+export interface PropertyVisitRequest {
+  property_id: number;
+  visit_type: 'rental' | 'sales';
+  listing_id?: number;
+  sales_listing_id?: number;
+  requested_date: string; // ISO date string (YYYY-MM-DD)
+  requested_time_slot: string;
+  visitor_phone: string;
+  visitor_notes?: string;
+}
+
+export interface PropertyVisitResponse {
+  id: number;
+  public_id: string;
+  property_id: number;
+  property_public_id: string;
+  listing_id?: number;
+  listing_public_id?: string;
+  visit_type: string;
+  visitor_user_id: number;
+  requested_date: string;
+  requested_time_slot: string;
+  visitor_phone: string;
+  visitor_notes?: string;
+  status: string;
+  created_at: string;
+}
+
+/**
+ * Schedule a property visit (authenticated users only)
+ * Requires: Valid access token in Authorization header
+ */
+export async function schedulePropertyVisit(visitData: PropertyVisitRequest): Promise<PropertyVisitResponse> {
+  const { data } = await api.post<PropertyVisitResponse>('/property-visits', visitData, {
+    withCredentials: true,
+  });
+  return data;
 }
