@@ -7,6 +7,59 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] - 2026-02-13
 
+### Added - Authentication System (CRITICAL)
+- **Complete authentication integration**: Marketing site now handles user signup/login locally
+  - Created `AuthContext` provider for global authentication state management
+  - Integrated backend auth API (`/api/v1/auth/login`, `/api/v1/auth/signup`)
+  - Added OTP email verification flow for tenant/owner signup
+  - Token storage in localStorage + HttpOnly refresh cookie support
+  - Axios request interceptor automatically adds auth token to API calls
+- **Login page**: Real authentication flow (no more redirect to app.propthinks.com)
+  - Email/password login with error handling
+  - "Remember me" and "Forgot password" options
+  - Redirects to return URL after successful login
+- **Signup page**: Multi-step registration with OTP verification
+  - Step 1: User fills registration form (name, email, phone, city, password)
+  - Step 2: User enters 6-digit OTP sent to email
+  - Step 3: Account created, automatically logged in
+  - Support for tenant/owner role selection
+- **Schedule Visit**: Authentication-aware property visit scheduling
+  - Unauthenticated users see "Login Required" prompt with button
+  - Authenticated users can submit visit requests directly to backend
+  - API integration with `/api/v1/property-visits` endpoint
+  - Form pre-fills with user's name from profile
+  - Real-time submission with loading states and error handling
+
+### Changed - Architecture
+- **BREAKING**: Marketing site is now self-contained for tenant experience
+  - Users signup/login on marketing site (not app.propthinks.com)
+  - Property visits scheduled from marketing site
+  - app.propthinks.com is for property management only (owners/managers/admin)
+- **API client**: Added request interceptor for automatic token injection
+- **Root layout**: Wrapped app with AuthProvider for global auth access
+
+**Impact:**
+- ✅ Seamless user experience - no external redirects for signup/login
+- ✅ Proper authentication required for scheduling property visits
+- ✅ Token-based auth with automatic refresh (HttpOnly cookies)
+- ✅ Clear separation: Marketing site for tenants, App for property management
+- ⚠️ BREAKING: Old login/signup redirects to app.propthinks.com removed
+
+**Testing Required:**
+- [ ] Signup flow: Email OTP verification, account creation
+- [ ] Login flow: Authentication, token storage, redirect to return URL
+- [ ] Schedule Visit: Auth check, form submission, API integration
+- [ ] Token refresh: Automatic renewal when access token expires
+- [ ] Logout: Clear tokens and redirect to homepage
+
+**Files Changed:**
+- `src/contexts/AuthContext.tsx` (NEW) - Authentication state management
+- `src/lib/api.ts` - Added auth endpoints + token interceptor
+- `src/app/(auth)/login/page.tsx` - Real API integration
+- `src/app/(auth)/signup/page.tsx` - OTP verification flow
+- `src/app/(main)/properties/[id]/page.tsx` - Auth-aware visit scheduling
+- `src/app/layout.tsx` - Wrapped with AuthProvider
+
 ### Fixed - Property Listing Images
 - **Removed mock data fallback**: Homepage no longer falls back to mock data when API fails
   - `getFeaturedProperties()` now returns empty array instead of `mockProperties`
