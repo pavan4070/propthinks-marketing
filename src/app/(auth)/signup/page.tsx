@@ -36,7 +36,11 @@ export default function SignupPage() {
     setError(null);
     
     try {
-      await requestOTP({ email: formData.email, purpose: 'signup' });
+      await requestOTP({ 
+        identifier: formData.email, 
+        method: 'email', 
+        purpose: 'signup' 
+      });
       setStep('otp');
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Failed to send OTP. Please try again.');

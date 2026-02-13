@@ -271,13 +271,15 @@ export interface AuthResponse {
 }
 
 export interface OTPRequest {
-  email: string;
-  purpose: 'signup' | 'password_reset';
+  identifier: string;  // Email or phone
+  method: 'email' | 'whatsapp';
+  purpose: 'signup' | 'login' | 'reset';
 }
 
 export interface OTPResponse {
   success: boolean;
   message: string;
+  identifier: string;
 }
 
 /**
