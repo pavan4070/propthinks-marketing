@@ -7,6 +7,106 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] - 2026-02-13
 
+### Added - Smart Login Redirect (February 13, 2026)
+
+**Feature:** Marketing site login now intelligently redirects users based on their role and tenant lifecycle status.
+
+**Redirect Logic:**
+- **Owners/Managers/Admins:** → Always redirect to `app.propthinks.com` (auth app)
+- **Tenants with active lease (ACTIVE_TENANT):** → Redirect to `app.propthinks.com/tenant/dashboard`
+- **Exploring tenants (no active lease):** → Stay on marketing site `/profile` page
+
+**Implementation:**
+- Added `checkTenantHasActiveLease()` API function to check if tenant has active lease
+- Login page now checks lease status after successful login for tenants
+- Uses `/leases/tenant/leases` endpoint to verify active lease exists
+
+**Files Modified:**
+- `src/lib/api.ts` - Added `checkTenantHasActiveLease()` function
+- `src/app/(auth)/login/page.tsx` - Updated redirect logic after login
+- `src/contexts/AuthContext.tsx` - Added `phone` field to AuthUser interface
+
+**Backend Changes (propthinks-backend):**
+- `app/schemas/auth.py` - Added `phone` field to AuthUser schema
+- `app/api/v1/auth/auth.py` - Updated login/signup to include phone in response
+
+### Added - Tenant Profile Page with Visit Tracking (February 13, 2026)
+
+**Feature:** Complete profile page for tenants to manage their account and track property visits on the marketing site. Enables tenants to stay in discovery/exploration phase before committing to token payment and full onboarding on app.propthinks.com.
+
+**Business Logic:**
+- Tenants remain on marketing site during exploration phase (browsing, visiting properties)
+- Max 2 active (scheduled/confirmed) visits at any time to prevent manager time abuse
+- After visit completion + manager marks "interested" → tenant can apply via "Apply for Property" button
+- Application requires token payment → redirects to authenticated app for full onboarding
+- Only 1 application per tenant allowed (blocks new visits when application is under review)
+
+**Features Implemented:**
+1. **Visit History Display:**
+   - All visits shown with status badges (scheduled, confirmed, completed, cancelled, no_show)
+   - Visit details: date, time slot, phone, notes
+   - Color-coded status indicators with icons
+
+2. **Context-Aware Actions:**
+   - **Scheduled/Confirmed visits**: "Cancel Visit" button (requires reason)
+   - **Completed visits**: "Apply for Property" button (if manager marked interested)
+   - **Cancelled/No Show**: History only, no actions
+
+3. **Visit Limit Indicator:**
+   - Sidebar widget showing "Active Visits X/2"
+   - Counts only scheduled/confirmed visits
+
+4. **User Profile Editing:**
+   - Editable fields: Full Name, Phone
+   - Read-only: Email (cannot be changed)
+   - Save/Cancel workflow with loading states
+   - User avatar with initial letter
+
+5. **Navigation:**
+   - Desktop header: Click user badge → navigate to /profile
+   - Mobile header: Click user card → navigate to /profile
+   - Empty state call-to-action → navigate to /properties
+
+**Files Created/Modified:**
+- `src/app/(main)/profile/page.tsx` - New profile page component
+- `src/components/layout/Header.tsx` - Added clickable navigation to profile page (desktop + mobile)
+- `package.json` - Added `date-fns` dependency for date formatting
+
+### Fixed - Profile Page Issues (February 13, 2026)
+
+**Bug #1: Active visits count showing 0 instead of 1**
+- **Issue:** Active visits indicator showed "0/2" even when a visit was scheduled
+- **Root Cause:** Visit count logic only included "scheduled" and "confirmed" statuses, missing "requested" status
+- **Fix:** Updated `loadVisits()` function to count "requested" visits as active (visits start as "requested" when tenant schedules, then manager confirms → "scheduled")
+- **Impact:** Active visits now correctly shows "1/2" for user with one requested visit
+- **File:** `src/app/(main)/profile/page.tsx` line 88-89
+
+**Bug #2: Cancel Visit button not showing for requested visits**
+- **Issue:** "Cancel Visit" button only appeared for "scheduled" or "confirmed" visits, not "requested"
+- **Root Cause:** `isCancellable` logic excluded "requested" status
+- **Business Logic:** Tenants should be able to cancel a visit request before manager confirms it
+- **Fix:** Updated `isCancellable` to include "requested" status: `visit.status === 'requested' || visit.status === 'scheduled' || visit.status === 'confirmed'`
+- **Impact:** Tenants can now cancel visit requests immediately after scheduling
+- **File:** `src/app/(main)/profile/page.tsx` line 322
+
+
+**API Integration:**
+- GET `/property-visits` - Fetch user's visit history
+- PATCH `/users/me` - Update user profile
+- PATCH `/property-visits/{id}/cancel` - Cancel visit with reason
+
+**Known Issues:**
+- Auth state persistence between direct URL navigations needs investigation (works within app navigation flow)
+- Token payment flow for "Apply for Property" not yet implemented (placeholder navigates to property page)
+
+**Testing Status:**
+- ✅ Profile page UI complete and responsive
+- ✅ Header navigation working (desktop + mobile)
+- ⏳ Full auth persistence testing needed
+- ⏳ End-to-end flow testing (cancel visit, apply for property) pending
+
+---
+
 ### Fixed - Authentication State Not Showing in Header (February 13, 2026)
 
 **Issue:** After successful signup and login, user remained logged in (localStorage had access token and user data) but the header still displayed "Login" and "Sign Up" buttons instead of showing the user's name and logout button.

@@ -80,14 +80,17 @@ export function Header() {
               </>
             ) : (
               <div className="flex items-center gap-3">
-                <div className="flex items-center gap-2 px-4 py-2 rounded-lg bg-gray-50">
+                <button
+                  onClick={() => router.push('/profile')}
+                  className="flex items-center gap-2 px-4 py-2 rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors cursor-pointer"
+                >
                   <div className="w-8 h-8 rounded-full bg-[#1fb6e0] flex items-center justify-center text-white font-semibold text-sm">
                     {user?.full_name?.charAt(0).toUpperCase() || 'U'}
                   </div>
                   <span className="text-sm font-medium text-gray-700">
                     {user?.full_name || user?.email}
                   </span>
-                </div>
+                </button>
                 <Button
                   onClick={handleLogout}
                   variant="outline"
@@ -146,7 +149,13 @@ export function Header() {
                   </>
                 ) : (
                   <>
-                    <div className="flex items-center gap-2 px-4 py-3 rounded-lg bg-gray-50 mb-2">
+                    <button
+                      onClick={() => {
+                        router.push('/profile');
+                        setMobileMenuOpen(false);
+                      }}
+                      className="flex items-center gap-2 px-4 py-3 rounded-lg bg-gray-50 mb-2 w-full hover:bg-gray-100 transition-colors text-left"
+                    >
                       <div className="w-8 h-8 rounded-full bg-[#1fb6e0] flex items-center justify-center text-white font-semibold text-sm">
                         {user?.full_name?.charAt(0).toUpperCase() || 'U'}
                       </div>
@@ -158,7 +167,7 @@ export function Header() {
                           {user?.email}
                         </p>
                       </div>
-                    </div>
+                    </button>
                     <Button
                       onClick={() => {
                         handleLogout();

@@ -325,6 +325,33 @@ export async function logout(): Promise<void> {
 }
 
 // =============================================================================
+// TENANT STATUS CHECK (for redirect logic)
+// =============================================================================
+
+export interface TenantLease {
+  id: number;
+  status: string;
+}
+
+/**
+ * Check if tenant has an active lease
+ * Used to determine if tenant should be redirected to auth app
+ * Returns true if tenant has active lease (is an ACTIVE_TENANT)
+ */
+export async function checkTenantHasActiveLease(): Promise<boolean> {
+  try {
+    const { data } = await api.get<TenantLease[]>('/leases/tenant/leases', {
+      withCredentials: true,
+    });
+    // Check if any lease is active
+    return data.some(lease => lease.status === 'active');
+  } catch (error) {
+    console.error('Failed to check tenant lease status:', error);
+    return false;
+  }
+}
+
+// =============================================================================
 // AUTHENTICATED PROPERTY VISITS
 // =============================================================================
 

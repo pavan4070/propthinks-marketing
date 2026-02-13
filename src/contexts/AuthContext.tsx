@@ -11,6 +11,7 @@ interface AuthUser {
   email: string;
   role: string;
   full_name: string;
+  phone: string | null;
   is_verified: boolean;
 }
 

@@ -8,11 +8,14 @@ import { Eye, EyeOff, Mail, Lock, ArrowRight, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useAuth } from '@/contexts/AuthContext';
+import { checkTenantHasActiveLease } from '@/lib/api';
+
+const AUTH_APP_URL = process.env.NEXT_PUBLIC_AUTH_APP_URL || 'https://app.propthinks.com';
 
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { login } = useAuth();
+  const { login, user } = useAuth();
   
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -30,8 +33,41 @@ function LoginForm() {
     try {
       await login(formData.email, formData.password);
       
-      // Redirect to return URL if provided, otherwise to homepage
-      const returnUrl = searchParams.get('return') || '/';
+      // Get user data from localStorage (set by login)
+      const storedUser = localStorage.getItem('propthinks_user');
+      const userData = storedUser ? JSON.parse(storedUser) : null;
+      
+      // Redirect based on user role and status
+      if (userData?.role === 'owner') {
+        // Owners always go to auth app
+        window.location.href = `${AUTH_APP_URL}/owner/dashboard`;
+        return;
+      }
+      
+      if (userData?.role === 'manager' || userData?.role === 'property_manager') {
+        // Managers always go to auth app
+        window.location.href = `${AUTH_APP_URL}/manager/dashboard`;
+        return;
+      }
+      
+      if (userData?.role === 'admin') {
+        // Admins always go to auth app
+        window.location.href = `${AUTH_APP_URL}/admin/dashboard`;
+        return;
+      }
+      
+      // For tenants, check if they have an active lease
+      if (userData?.role === 'tenant') {
+        const hasActiveLease = await checkTenantHasActiveLease();
+        if (hasActiveLease) {
+          // Active tenants go to auth app
+          window.location.href = `${AUTH_APP_URL}/tenant/dashboard`;
+          return;
+        }
+      }
+      
+      // Exploring tenants (no active lease) stay on marketing site
+      const returnUrl = searchParams.get('return') || '/profile';
       router.push(returnUrl);
     } catch (err: any) {
       setError(err.message || 'Login failed. Please check your credentials.');
