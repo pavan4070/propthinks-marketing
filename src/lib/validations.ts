@@ -16,16 +16,14 @@ export type ScheduleVisitInput = z.infer<typeof scheduleVisitSchema>;
 
 // Owner inquiry form validation
 export const ownerInquirySchema = z.object({
-  name: z.string().min(2).max(100).trim(),
+  name: z.string().min(2).max(200).trim(),
   phone: z.string().regex(/^[6-9]\d{9}$/, 'Invalid Indian phone number'),
   email: z.string().email().toLowerCase(),
-  property_type: z.enum(['apartment', 'house', 'villa', 'plot'], {
+  property_type: z.enum(['apartment', 'house', 'villa', 'commercial', 'land', 'pg', 'other'], {
     errorMap: () => ({ message: 'Please select a property type' }),
   }),
-  city: z.enum(['Nellore', 'Guntur', 'Vijayawada', 'Tirupati'], {
-    errorMap: () => ({ message: 'Please select a city' }),
-  }),
-  message: z.string().min(10).max(500),
+  city: z.string().min(2).max(100).optional(),
+  message: z.string().max(2000).optional(),
 });
 
 export type OwnerInquiryInput = z.infer<typeof ownerInquirySchema>;

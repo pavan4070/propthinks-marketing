@@ -1,26 +1,15 @@
 'use client';
 
-import { Property, PropertyListing } from '@/types/property';
+import { PropertyListing } from '@/types/property';
 import { PropertyCard } from './PropertyCard';
 import { Home } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 
-// Support both legacy Property and new PropertyListing types
-type PropertyData = Property | PropertyListing;
-
 interface PropertyGridProps {
-  properties: PropertyData[];
+  properties: PropertyListing[];
   showEmpty?: boolean;
   city?: string;
-}
-
-// Get unique key for property (works with both types)
-function getPropertyKey(property: PropertyData): string {
-  if ('public_id' in property) {
-    return property.public_id;
-  }
-  return property.id;
 }
 
 export function PropertyGrid({ properties, showEmpty = true, city }: PropertyGridProps) {
@@ -44,7 +33,7 @@ export function PropertyGrid({ properties, showEmpty = true, city }: PropertyGri
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
       {properties.map((property) => (
-        <PropertyCard key={getPropertyKey(property)} property={property} />
+        <PropertyCard key={property.public_id} property={property} />
       ))}
     </div>
   );

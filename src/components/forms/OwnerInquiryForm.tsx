@@ -35,10 +35,11 @@ export function OwnerInquiryForm() {
         text: 'Inquiry submitted! Our team will contact you within 24 hours.',
       });
       reset();
-    } catch {
+    } catch (err: unknown) {
+      const axiosError = err as { response?: { data?: { detail?: string } } };
       setMessage({
         type: 'error',
-        text: 'Failed to submit inquiry. Please try again.',
+        text: axiosError?.response?.data?.detail || 'Failed to submit inquiry. Please try again.',
       });
     } finally {
       setIsSubmitting(false);
@@ -101,7 +102,10 @@ export function OwnerInquiryForm() {
             <option value="apartment">Apartment</option>
             <option value="house">Independent House</option>
             <option value="villa">Villa</option>
-            <option value="plot">Plot/Land</option>
+            <option value="commercial">Commercial</option>
+            <option value="land">Plot/Land</option>
+            <option value="pg">PG/Hostel</option>
+            <option value="other">Other</option>
           </Select>
           {errors.property_type && (
             <p className="text-sm text-red-600 mt-1.5 flex items-center gap-1">
@@ -113,7 +117,7 @@ export function OwnerInquiryForm() {
 
         <div>
           <label htmlFor="city" className="block text-sm font-medium text-[#0f1729] mb-2">
-            City <span className="text-red-500">*</span>
+            City <span className="text-slate-400 font-normal">(Optional)</span>
           </label>
           <Select id="city" {...register('city')}>
             <option value="">Select city</option>
@@ -132,7 +136,7 @@ export function OwnerInquiryForm() {
 
         <div className="sm:col-span-2">
           <label htmlFor="message" className="block text-sm font-medium text-[#0f1729] mb-2">
-            Property Details <span className="text-red-500">*</span>
+            Property Details <span className="text-slate-400 font-normal">(Optional)</span>
           </label>
           <Textarea
             id="message"

@@ -9,20 +9,53 @@ import {
   MessageCircle, 
   Clock,
   CheckCircle,
-  Send
+  Send,
+  Loader2,
+  AlertCircle
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { siteConfig } from '@/config/site';
+import { submitContactInquiry } from '@/lib/api';
 
 export default function ContactPage() {
   const [contactMethod, setContactMethod] = useState<'phone' | 'whatsapp' | 'email'>('phone');
   const [formSubmitted, setFormSubmitted] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  // Form field state
+  const [name, setName] = useState('');
+  const [subject, setSubject] = useState('');
+  const [contactValue, setContactValue] = useState('');
+  const [message, setMessage] = useState('');
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setFormSubmitted(true);
+    setError(null);
+    setIsSubmitting(true);
+
+    try {
+      await submitContactInquiry({
+        name: name.trim(),
+        ...(contactMethod === 'email'
+          ? { email: contactValue.trim() }
+          : { phone: contactValue.trim() }),
+        contact_method: contactMethod,
+        subject: subject as 'rental' | 'list' | 'support' | 'partnership' | 'other',
+        message: message.trim(),
+      });
+      setFormSubmitted(true);
+    } catch (err: unknown) {
+      const axiosError = err as { response?: { data?: { detail?: string } } };
+      setError(
+        axiosError?.response?.data?.detail ||
+        'Something went wrong. Please try again or contact us directly.'
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -107,12 +140,26 @@ export default function ContactPage() {
                   </p>
 
                   <form onSubmit={handleSubmit} className="space-y-6">
+                    {error && (
+                      <div className="flex items-start gap-3 p-4 bg-red-50 border border-red-200 rounded-lg">
+                        <AlertCircle className="h-5 w-5 text-red-500 mt-0.5 shrink-0" />
+                        <p className="text-sm text-red-700">{error}</p>
+                      </div>
+                    )}
+
                     <div className="grid md:grid-cols-2 gap-6">
                       <div>
                         <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
                           Your Name *
                         </label>
-                        <Input id="name" placeholder="Enter your name" required />
+                        <Input
+                          id="name"
+                          placeholder="Enter your name"
+                          required
+                          value={name}
+                          onChange={(e) => setName(e.target.value)}
+                          disabled={isSubmitting}
+                        />
                       </div>
                       <div>
                         <label htmlFor="subject" className="block text-sm font-medium text-gray-700 mb-1">
@@ -121,7 +168,10 @@ export default function ContactPage() {
                         <select
                           id="subject"
                           required
-                          className="w-full px-4 py-2 rounded-lg border border-gray-200 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#1fb6e0] focus:border-transparent"
+                          value={subject}
+                          onChange={(e) => setSubject(e.target.value)}
+                          disabled={isSubmitting}
+                          className="w-full px-4 py-2 rounded-lg border border-gray-200 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#1fb6e0] focus:border-transparent disabled:opacity-50"
                         >
                           <option value="">Select a topic</option>
                           <option value="rental">Looking for a rental</option>
@@ -193,6 +243,9 @@ export default function ContactPage() {
                             : 'Enter your email address'
                         }
                         required
+                        value={contactValue}
+                        onChange={(e) => setContactValue(e.target.value)}
+                        disabled={isSubmitting}
                       />
                     </div>
 
@@ -205,12 +258,28 @@ export default function ContactPage() {
                         placeholder="How can we help you?"
                         rows={5}
                         required
+                        value={message}
+                        onChange={(e) => setMessage(e.target.value)}
+                        disabled={isSubmitting}
                       />
                     </div>
 
-                    <Button type="submit" className="w-full bg-[#1fb6e0] hover:bg-[#1fb6e0]/90 text-white">
-                      <Send className="mr-2 h-4 w-4" />
-                      Send Message
+                    <Button
+                      type="submit"
+                      className="w-full bg-[#1fb6e0] hover:bg-[#1fb6e0]/90 text-white"
+                      disabled={isSubmitting}
+                    >
+                      {isSubmitting ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Sending...
+                        </>
+                      ) : (
+                        <>
+                          <Send className="mr-2 h-4 w-4" />
+                          Send Message
+                        </>
+                      )}
                     </Button>
 
                     <p className="text-xs text-gray-400 text-center">
@@ -227,15 +296,9 @@ export default function ContactPage() {
                     <CheckCircle className="h-10 w-10 text-green-600" />
                   </div>
                   <h3 className="text-2xl font-bold text-gray-900 mb-2">Message Sent!</h3>
-                  <p className="text-gray-600 mb-6 max-w-md mx-auto">
+                  <p className="text-gray-600 max-w-md mx-auto">
                     Thank you for reaching out. Our team will get back to you within 24 hours.
                   </p>
-                  <Button
-                    variant="outline"
-                    onClick={() => setFormSubmitted(false)}
-                  >
-                    Send Another Message
-                  </Button>
                 </div>
               )}
             </div>

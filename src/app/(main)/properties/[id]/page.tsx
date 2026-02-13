@@ -8,9 +8,7 @@ import { ArrowLeft, Bath, BedDouble, ChevronLeft, ChevronRight, Home, MapPin, Ph
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { getPropertyById, mockProperties } from '@/data/mock-properties';
-import { getListingDetail, schedulePropertyVisit, type PropertyListing } from '@/lib/api';
-import type { Property } from '@/types/property';
+import { getListingDetail, searchListings, schedulePropertyVisit, type PropertyListing } from '@/lib/api';
 import { siteConfig } from '@/config/site';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -47,48 +45,26 @@ interface NormalizedProperty {
   available_from: string;
 }
 
-// Normalize API listing or mock property to common format
-function normalizeProperty(data: PropertyListing | Property): NormalizedProperty {
-  if ('public_id' in data) {
-    // It's a PropertyListing from API
-    // Convert image_url (single string) to images array with full URL
-    const fullImageUrl = getFullImageUrl(data.image_url);
-    const images = fullImageUrl ? [fullImageUrl] : [];
-    return {
-      id: data.public_id,
-      title: data.title,
-      description: data.description || '',
-      locality: data.locality || '',
-      city: data.city,
-      bhk: data.bedrooms,
-      bathrooms: data.bathrooms || 1,
-      area_sqft: data.area_sqft || 0,
-      rent: data.rent_amount,
-      deposit: data.security_deposit,
-      maintenance: data.maintenance_amount,
-      furnishing: data.furnishing_type.replace(/_/g, ' '),
-      amenities: data.amenities,
-      images: images,
-      available_from: data.available_from || 'Immediate',
-    };
-  }
-  // It's a legacy Property
+// Normalize API listing to display format
+function normalizeProperty(data: PropertyListing): NormalizedProperty {
+  const fullImageUrl = getFullImageUrl(data.image_url);
+  const images = fullImageUrl ? [fullImageUrl] : [];
   return {
-    id: data.id,
+    id: data.public_id,
     title: data.title,
-    description: data.description,
-    locality: data.locality,
+    description: data.description || '',
+    locality: data.locality || '',
     city: data.city,
-    bhk: data.bhk,
-    bathrooms: data.bathrooms,
-    area_sqft: data.area_sqft,
-    rent: data.rent,
-    deposit: data.deposit,
-    maintenance: data.maintenance || 0,
-    furnishing: data.furnishing,
+    bhk: data.bedrooms,
+    bathrooms: data.bathrooms || 1,
+    area_sqft: data.area_sqft || 0,
+    rent: data.rent_amount,
+    deposit: data.security_deposit,
+    maintenance: data.maintenance_amount,
+    furnishing: data.furnishing_type.replace(/_/g, ' '),
     amenities: data.amenities,
-    images: data.images,
-    available_from: data.available_from,
+    images: images,
+    available_from: data.available_from || 'Immediate',
   };
 }
 
@@ -106,7 +82,7 @@ export default function PropertyDetailPage() {
   const [formSubmitted, setFormSubmitted] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [similarProperties, setSimilarProperties] = useState<Property[]>([]);
+  const [similarProperties, setSimilarProperties] = useState<PropertyListing[]>([]);
   const [listingData, setListingData] = useState<PropertyListing | null>(null);
   
   const [visitForm, setVisitForm] = useState({
@@ -121,31 +97,25 @@ export default function PropertyDetailPage() {
       setError(null);
       
       try {
-        // Try fetching from API first
+        // Fetch from API
         const listing = await getListingDetail(propertyId);
-        setListingData(listing); // Store for visit scheduling
+        setListingData(listing);
         setProperty(normalizeProperty(listing));
         
-        // Get similar properties from mock data for now
-        // TODO: Add API endpoint for similar properties
-        const similar = mockProperties
-          .filter((p) => p.city.toLowerCase() === listing.city.toLowerCase() && p.id !== propertyId)
-          .slice(0, 3);
-        setSimilarProperties(similar);
-      } catch (apiError) {
-        console.warn('API fetch failed, trying mock data:', apiError);
-        
-        // Fallback to mock data
-        const mockProperty = getPropertyById(propertyId);
-        if (mockProperty) {
-          setProperty(normalizeProperty(mockProperty));
-          const similar = mockProperties
-            .filter((p) => p.city === mockProperty.city && p.id !== mockProperty.id)
-            .slice(0, 3);
-          setSimilarProperties(similar);
-        } else {
-          setError('Property not found');
+        // Get similar properties from API (same city, exclude current)
+        try {
+          const similarListings = await searchListings({
+            city: listing.city,
+            limit: 4,
+          });
+          setSimilarProperties(
+            similarListings.filter((l) => l.public_id !== propertyId).slice(0, 3)
+          );
+        } catch {
+          // Similar properties are non-critical, ignore errors
         }
+      } catch {
+        setError('Property not found');
       } finally {
         setLoading(false);
       }
@@ -379,26 +349,37 @@ export default function PropertyDetailPage() {
               <div className="bg-white rounded-2xl p-6 shadow-sm">
                 <h2 className="text-lg font-semibold text-gray-900 mb-4">Similar Properties in {property.city}</h2>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                  {similarProperties.map((p) => (
-                    <Link
-                      key={p.id}
-                      href={`/properties/${p.id}`}
-                      className="group block rounded-xl overflow-hidden border border-gray-100 hover:shadow-md transition-shadow"
-                    >
-                      <div className="relative aspect-[4/3]">
-                        <Image
-                          src={p.images[0]}
-                          alt={p.title}
-                          fill
-                          className="object-cover group-hover:scale-105 transition-transform duration-300"
-                        />
-                      </div>
-                      <div className="p-3">
-                        <p className="font-medium text-gray-900 text-sm line-clamp-1">{p.title}</p>
-                        <p className="text-[#1fb6e0] font-semibold text-sm">₹{p.rent.toLocaleString()}/mo</p>
-                      </div>
-                    </Link>
-                  ))}
+                  {similarProperties.map((p) => {
+                    const imageUrl = p.image_url
+                      ? (p.image_url.startsWith('http') ? p.image_url : `${SUPABASE_STORAGE_URL}/${p.image_url}`)
+                      : null;
+                    return (
+                      <Link
+                        key={p.public_id}
+                        href={`/properties/${p.public_id}`}
+                        className="group block rounded-xl overflow-hidden border border-gray-100 hover:shadow-md transition-shadow"
+                      >
+                        <div className="relative aspect-[4/3]">
+                          {imageUrl ? (
+                            <Image
+                              src={imageUrl}
+                              alt={p.title}
+                              fill
+                              className="object-cover group-hover:scale-105 transition-transform duration-300"
+                            />
+                          ) : (
+                            <div className="flex items-center justify-center h-full bg-gray-100">
+                              <Home className="h-8 w-8 text-gray-300" />
+                            </div>
+                          )}
+                        </div>
+                        <div className="p-3">
+                          <p className="font-medium text-gray-900 text-sm line-clamp-1">{p.title}</p>
+                          <p className="text-[#1fb6e0] font-semibold text-sm">₹{p.rent_amount.toLocaleString()}/mo</p>
+                        </div>
+                      </Link>
+                    );
+                  })}
                 </div>
               </div>
             )}

@@ -17,12 +17,15 @@ import {
   ArrowRight,
   Building2,
   Calendar,
-  BadgeCheck
+  BadgeCheck,
+  Loader2,
+  AlertCircle
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { siteConfig } from '@/config/site';
+import { submitOwnerInquiry } from '@/lib/api';
 
 const benefits = [
   {
@@ -83,10 +86,50 @@ const howItWorks = [
 export default function OwnersPage() {
   const [contactMethod, setContactMethod] = useState<'phone' | 'whatsapp' | 'email'>('phone');
   const [formSubmitted, setFormSubmitted] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  // Form field state
+  const [name, setName] = useState('');
+  const [city, setCity] = useState('');
+  const [propertyType, setPropertyType] = useState('');
+  const [contactValue, setContactValue] = useState('');
+  const [message, setMessage] = useState('');
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setFormSubmitted(true);
+    setError(null);
+    setIsSubmitting(true);
+
+    // Map display property types to backend-accepted values
+    const propertyTypeMap: Record<string, string> = {
+      '1bhk': 'apartment',
+      '2bhk': 'apartment',
+      '3bhk': 'apartment',
+      'house': 'house',
+      'villa': 'villa',
+      'other': 'other',
+    };
+
+    try {
+      await submitOwnerInquiry({
+        name: name.trim(),
+        email: contactMethod === 'email' ? contactValue.trim() : `${name.trim().toLowerCase().replace(/\s+/g, '.')}@inquiry.propthinks.com`,
+        phone: contactMethod !== 'email' ? contactValue.trim() : '0000000000',
+        property_type: propertyTypeMap[propertyType] || 'other',
+        city: city || undefined,
+        message: message.trim() || undefined,
+      });
+      setFormSubmitted(true);
+    } catch (err: unknown) {
+      const axiosError = err as { response?: { data?: { detail?: string } } };
+      setError(
+        axiosError?.response?.data?.detail ||
+        'Something went wrong. Please try again or contact us directly.'
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -260,12 +303,26 @@ export default function OwnersPage() {
             <div className="p-8">
               {!formSubmitted ? (
                 <form onSubmit={handleSubmit} className="space-y-6">
+                  {error && (
+                    <div className="flex items-start gap-3 p-4 bg-red-50 border border-red-200 rounded-lg">
+                      <AlertCircle className="h-5 w-5 text-red-500 mt-0.5 shrink-0" />
+                      <p className="text-sm text-red-700">{error}</p>
+                    </div>
+                  )}
+
                   <div className="grid md:grid-cols-2 gap-6">
                     <div>
                       <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
                         Your Name *
                       </label>
-                      <Input id="name" placeholder="Enter your name" required />
+                      <Input
+                        id="name"
+                        placeholder="Enter your name"
+                        required
+                        value={name}
+                        onChange={(e) => setName(e.target.value)}
+                        disabled={isSubmitting}
+                      />
                     </div>
                     <div>
                       <label htmlFor="city" className="block text-sm font-medium text-gray-700 mb-1">
@@ -274,7 +331,10 @@ export default function OwnersPage() {
                       <select
                         id="city"
                         required
-                        className="w-full px-4 py-2 rounded-lg border border-gray-200 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#1fb6e0] focus:border-transparent"
+                        value={city}
+                        onChange={(e) => setCity(e.target.value)}
+                        disabled={isSubmitting}
+                        className="w-full px-4 py-2 rounded-lg border border-gray-200 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#1fb6e0] focus:border-transparent disabled:opacity-50"
                       >
                         <option value="">Select city</option>
                         {siteConfig.markets.map((market) => (
@@ -294,7 +354,10 @@ export default function OwnersPage() {
                     <select
                       id="propertyType"
                       required
-                      className="w-full px-4 py-2 rounded-lg border border-gray-200 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#1fb6e0] focus:border-transparent"
+                      value={propertyType}
+                      onChange={(e) => setPropertyType(e.target.value)}
+                      disabled={isSubmitting}
+                      className="w-full px-4 py-2 rounded-lg border border-gray-200 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#1fb6e0] focus:border-transparent disabled:opacity-50"
                     >
                       <option value="">Select type</option>
                       <option value="1bhk">1 BHK Apartment</option>
@@ -366,6 +429,9 @@ export default function OwnersPage() {
                           : 'Enter your email address'
                       }
                       required
+                      value={contactValue}
+                      onChange={(e) => setContactValue(e.target.value)}
+                      disabled={isSubmitting}
                     />
                   </div>
 
@@ -377,11 +443,25 @@ export default function OwnersPage() {
                       id="message"
                       placeholder="Tell us more about your property..."
                       rows={4}
+                      value={message}
+                      onChange={(e) => setMessage(e.target.value)}
+                      disabled={isSubmitting}
                     />
                   </div>
 
-                  <Button type="submit" className="w-full bg-[#1fb6e0] hover:bg-[#1fb6e0]/90 text-white py-3">
-                    Submit Inquiry
+                  <Button
+                    type="submit"
+                    className="w-full bg-[#1fb6e0] hover:bg-[#1fb6e0]/90 text-white py-3"
+                    disabled={isSubmitting}
+                  >
+                    {isSubmitting ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Submitting...
+                      </>
+                    ) : (
+                      'Submit Inquiry'
+                    )}
                   </Button>
 
                   <p className="text-xs text-gray-400 text-center">
@@ -397,15 +477,9 @@ export default function OwnersPage() {
                     <CheckCircle className="h-10 w-10 text-green-600" />
                   </div>
                   <h3 className="text-2xl font-bold text-gray-900 mb-2">Thank You!</h3>
-                  <p className="text-gray-600 mb-6 max-w-md mx-auto">
+                  <p className="text-gray-600 max-w-md mx-auto">
                     We've received your inquiry. Our team will contact you within 24 hours to discuss your property.
                   </p>
-                  <Button
-                    variant="outline"
-                    onClick={() => setFormSubmitted(false)}
-                  >
-                    Submit Another Inquiry
-                  </Button>
                 </div>
               )}
             </div>

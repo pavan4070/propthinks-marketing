@@ -75,9 +75,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
   }, []);
 
   const login = async (email: string, password: string) => {
-    const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://web-production-43694.up.railway.app';
+    const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://web-production-43694.up.railway.app/api/v1';
     
-    const response = await fetch(`${API_BASE_URL}/api/v1/auth/login`, {
+    const response = await fetch(`${API_BASE_URL}/auth/login`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -111,9 +111,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
     state: string,
     otpCode: string
   ) => {
-    const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://web-production-43694.up.railway.app';
+    const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://web-production-43694.up.railway.app/api/v1';
     
-    const response = await fetch(`${API_BASE_URL}/api/v1/auth/signup`, {
+    const response = await fetch(`${API_BASE_URL}/auth/signup`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -157,10 +157,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
   };
 
   const refreshAuth = async () => {
-    const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://web-production-43694.up.railway.app';
+    const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://web-production-43694.up.railway.app/api/v1';
     
     try {
-      const response = await fetch(`${API_BASE_URL}/api/v1/auth/refresh`, {
+      const response = await fetch(`${API_BASE_URL}/auth/refresh`, {
         method: 'POST',
         credentials: 'include', // Send refresh token cookie
       });

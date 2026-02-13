@@ -1,9 +1,7 @@
 import type { Metadata } from 'next';
 import { PropertyGrid } from '@/components/property/PropertyGrid';
 import { PropertyFilters } from '@/components/property/PropertyFilters';
-import { mockProperties, filterProperties } from '@/data/mock-properties';
 import { searchListings, type PropertyListing } from '@/lib/api';
-import type { Property } from '@/types/property';
 
 export const metadata: Metadata = {
   title: 'Properties for Rent | PropThinks',
@@ -23,14 +21,14 @@ interface PropertiesPageProps {
 }
 
 /**
- * Fetch listings from API with fallback to mock data
+ * Fetch listings from API
  */
 async function getListings(params: {
   city?: string;
   bhk?: string;
   budget?: string;
   type?: string;
-}): Promise<{ listings: (PropertyListing | Property)[]; fromApi: boolean }> {
+}): Promise<PropertyListing[]> {
   // Parse budget range
   let min_rent: number | undefined;
   let max_rent: number | undefined;
@@ -46,7 +44,6 @@ async function getListings(params: {
   }
 
   try {
-    // Try fetching from real API
     const listings = await searchListings({
       city: params.city,
       bedrooms: params.bhk ? parseInt(params.bhk) : undefined,
@@ -55,26 +52,16 @@ async function getListings(params: {
       limit: 50,
     });
     
-    return { listings, fromApi: true };
+    return listings;
   } catch (error) {
-    console.warn('API fetch failed, falling back to mock data:', error);
-    
-    // Fallback to mock data
-    const filteredMock = filterProperties({
-      city: params.city,
-      bhk: params.bhk ? parseInt(params.bhk) : undefined,
-      minRent: min_rent,
-      maxRent: max_rent,
-      type: params.type,
-    });
-    
-    return { listings: filteredMock, fromApi: false };
+    console.warn('Failed to fetch listings from API:', error);
+    return [];
   }
 }
 
 export default async function PropertiesPage({ searchParams }: PropertiesPageProps) {
   const params = await searchParams;
-  const { listings, fromApi } = await getListings(params);
+  const listings = await getListings(params);
 
   return (
     <>
@@ -86,7 +73,6 @@ export default async function PropertiesPage({ searchParams }: PropertiesPagePro
           </h1>
           <p className="mt-2 text-gray-700 leading-relaxed">
             {listings.length} verified {listings.length === 1 ? 'property' : 'properties'} available
-            {!fromApi && <span className="text-sm text-gray-400 ml-2">(demo data)</span>}
           </p>
         </div>
       </section>

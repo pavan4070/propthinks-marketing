@@ -54,7 +54,7 @@ export const metadata: Metadata = {
     description: 'Find verified properties for rent in Nellore, Guntur, Vijayawada, and Tirupati.',
     images: [
       {
-        url: '/og-image.jpg',
+        url: '/brand/logo-primary.png',
         width: 1200,
         height: 630,
         alt: 'PropThinks - Professional Property Management',
@@ -65,7 +65,7 @@ export const metadata: Metadata = {
     card: 'summary_large_image',
     title: 'PropThinks - Property Management',
     description: 'Find your perfect home in Andhra Pradesh',
-    images: ['/og-image.jpg'],
+    images: ['/brand/logo-primary.png'],
   },
   robots: {
     index: true,

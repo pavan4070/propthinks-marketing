@@ -5,8 +5,8 @@ import { notFound } from 'next/navigation';
 import { MapPin, Home, ArrowRight, Phone, Building2, Users, Shield } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { PropertyGrid } from '@/components/property/PropertyGrid';
-import { getPropertiesByCity, cityImages } from '@/data/mock-properties';
-import { siteConfig, localities } from '@/config/site';
+import { searchListings, getCityListingCount } from '@/lib/api';
+import { siteConfig, localities, cityImages } from '@/config/site';
 
 interface CityPageProps {
   params: Promise<{ city: string }>;
@@ -19,6 +19,9 @@ export async function generateStaticParams() {
   }));
 }
 
+// Revalidate every 60 seconds for ISR
+export const revalidate = 60;
+
 // Generate metadata for SEO
 export async function generateMetadata({ params }: CityPageProps): Promise<Metadata> {
   const { city } = await params;
@@ -30,7 +33,7 @@ export async function generateMetadata({ params }: CityPageProps): Promise<Metad
 
   return {
     title: `Rental Properties in ${market.name} | PropThinks`,
-    description: `Find verified rental homes and apartments in ${market.name}. Browse ${market.propertyCount}+ properties with PropThinks - your trusted property management partner in Andhra Pradesh.`,
+    description: `Find verified rental homes and apartments in ${market.name}. Browse properties with PropThinks - your trusted property management partner in Andhra Pradesh.`,
     openGraph: {
       title: `Rental Properties in ${market.name}`,
       description: `Find verified rental homes in ${market.name} with PropThinks`,
@@ -46,7 +49,11 @@ export default async function CityPage({ params }: CityPageProps) {
     notFound();
   }
 
-  const properties = getPropertiesByCity(market.name);
+  // Fetch real data from API
+  const [properties, listingCount] = await Promise.all([
+    searchListings({ city: market.slug, limit: 12 }).catch(() => []),
+    getCityListingCount(market.slug),
+  ]);
   const cityLocalities = localities[market.slug as keyof typeof localities] || [];
 
   return (
@@ -78,7 +85,7 @@ export default async function CityPage({ params }: CityPageProps) {
             <div className="flex flex-wrap gap-4">
               <Link href={`/properties?city=${market.slug}`}>
                 <Button size="lg" className="bg-[#1fb6e0] hover:bg-[#1fb6e0]/90 text-white">
-                  Browse {market.propertyCount}+ Properties
+                  Browse Properties
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
               </Link>
@@ -97,7 +104,7 @@ export default async function CityPage({ params }: CityPageProps) {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
             <div className="text-center">
-              <p className="text-3xl font-bold text-[#1fb6e0]">{market.propertyCount}+</p>
+              <p className="text-3xl font-bold text-[#1fb6e0]">{listingCount}</p>
               <p className="text-gray-600">Active Listings</p>
             </div>
             <div className="text-center">
@@ -261,7 +268,7 @@ export default async function CityPage({ params }: CityPageProps) {
                     <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent" />
                     <div className="absolute bottom-3 left-3 right-3">
                       <p className="text-white font-semibold">{m.name}</p>
-                      <p className="text-white/70 text-sm">{m.propertyCount}+ properties</p>
+                      <p className="text-white/70 text-sm">View properties</p>
                     </div>
                   </div>
                 </Link>

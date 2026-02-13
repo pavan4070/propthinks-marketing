@@ -57,42 +57,6 @@ export interface ListingSearchFilters {
 }
 
 // =============================================================================
-// LEGACY TYPES (For backwards compatibility with mock data)
-// =============================================================================
-
-/** @deprecated Use PropertyListing instead */
-export interface Property {
-  id: string;
-  title: string;
-  description: string;
-  locality: string;
-  city: string;
-  state: string;
-  bhk: number;
-  bathrooms: number;
-  area_sqft: number;
-  rent: number;
-  deposit: number;
-  maintenance?: number;
-  furnishing: 'unfurnished' | 'semi-furnished' | 'furnished' | 'fully-furnished';
-  property_type: 'apartment' | 'house' | 'villa' | 'studio';
-  amenities: string[];
-  images: string[];
-  available_from: string;
-  posted_date: string;
-}
-
-/** @deprecated Use ListingSearchFilters instead */
-export interface PropertyFilters {
-  city?: string;
-  bhk?: number;
-  minRent?: number;
-  maxRent?: number;
-  type?: string;
-  locality?: string;
-}
-
-// =============================================================================
 // UTILITY FUNCTIONS
 // =============================================================================
 
@@ -109,49 +73,6 @@ export function formatListing(listing: PropertyListing) {
     furnishingDisplay: listing.furnishing_type.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
     // Format area
     areaDisplay: listing.area_sqft ? `${listing.area_sqft} sq.ft` : null,
-  };
-}
-
-/**
- * Convert old Property format to new PropertyListing format (for migration)
- */
-export function legacyPropertyToListing(property: Property): PropertyListing {
-  const furnishingMap: Record<string, FurnishingType> = {
-    'unfurnished': 'unfurnished',
-    'semi-furnished': 'semi_furnished',
-    'furnished': 'fully_furnished',
-    'fully-furnished': 'fully_furnished',
-  };
-
-  return {
-    id: parseInt(property.id.replace(/\D/g, '')) || 0,
-    public_id: property.id,
-    ops_ref: property.id,
-    property_id: 0,
-    property_public_id: null,
-    title: property.title,
-    description: property.description,
-    rent_amount: property.rent,
-    security_deposit: property.deposit,
-    maintenance_amount: property.maintenance || 0,
-    city: property.city,
-    locality: property.locality,
-    bedrooms: property.bhk,
-    bathrooms: property.bathrooms,
-    area_sqft: property.area_sqft,
-    furnishing_type: furnishingMap[property.furnishing] || 'unfurnished',
-    amenities: property.amenities,
-    tenant_type_allowed: 'any',
-    minimum_lease_months: 11,
-    available_from: property.available_from,
-    status: 'active',
-    views_count: 0,
-    application_count: 0,
-    listed_by_user_id: null,
-    created_at: property.posted_date,
-    updated_at: property.posted_date,
-    published_at: property.posted_date,
-    image_url: property.images?.[0] || null,
   };
 }
 

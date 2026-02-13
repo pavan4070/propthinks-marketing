@@ -165,7 +165,7 @@ export function getOwnerSignupUrl(): string {
 }
 
 // =============================================================================
-// FORM SUBMISSIONS (Placeholder - Will connect to backend later)
+// FORM SUBMISSIONS (Connected to Backend API)
 // =============================================================================
 
 export interface OwnerInquiryData {
@@ -175,50 +175,63 @@ export interface OwnerInquiryData {
   property_type: string;
   city?: string;
   message?: string;
-  contact_method?: string;
 }
 
-export interface ScheduleVisitData {
-  property_id: string;
+export interface OwnerInquiryResponse {
+  success: boolean;
+  message: string;
+  inquiry_id: string;
+}
+
+/**
+ * Submit owner inquiry to backend API (public endpoint - no auth required)
+ * POST /api/v1/public/owner-inquiries
+ */
+export async function submitOwnerInquiry(data: OwnerInquiryData): Promise<OwnerInquiryResponse> {
+  const { data: response } = await api.post<OwnerInquiryResponse>('/public/owner-inquiries', data);
+  return response;
+}
+
+// =============================================================================
+// CONTACT INQUIRIES (Public)
+// =============================================================================
+
+export interface ContactInquiryData {
   name: string;
-  phone: string;
-  email: string;
-  preferred_date: string;
-  preferred_time?: string;
-  message?: string;
+  email?: string;
+  phone?: string;
+  contact_method: 'phone' | 'whatsapp' | 'email';
+  subject: 'rental' | 'list' | 'support' | 'partnership' | 'other';
+  message: string;
+}
+
+export interface ContactInquiryResponse {
+  public_id: string;
+  message: string;
 }
 
 /**
- * Submit owner inquiry
- * Note: Currently stores locally and shows success. 
- * Backend endpoint to be added in future.
+ * Submit contact/general inquiry to backend API (public endpoint - no auth required)
+ * POST /api/v1/public/contact-inquiries
  */
-export async function submitOwnerInquiry(data: OwnerInquiryData): Promise<{ success: boolean }> {
-  // Log inquiry for now (will be sent to backend later)
-  console.log('Owner inquiry submitted:', data);
-  
-  // Simulate API delay
-  await new Promise(resolve => setTimeout(resolve, 500));
-  
-  // In production, this would POST to backend
-  // For now, just return success
-  return { success: true };
+export async function submitContactInquiry(data: ContactInquiryData): Promise<ContactInquiryResponse> {
+  const { data: response } = await api.post<ContactInquiryResponse>('/public/contact-inquiries', data);
+  return response;
 }
 
 /**
- * Schedule a property visit
- * Note: Requires authentication. User must be logged in.
+ * Get listing count for a specific city (public endpoint)
+ * Used to show live property counts instead of hardcoded values
  */
-export async function scheduleVisit(data: ScheduleVisitData): Promise<{ success: boolean }> {
-  // Log visit request for now (will be sent to backend later)
-  console.log('Visit request submitted:', data);
-  
-  // Simulate API delay
-  await new Promise(resolve => setTimeout(resolve, 500));
-  
-  // In production, this would POST to backend
-  // For now, just return success
-  return { success: true };
+export async function getCityListingCount(city: string): Promise<number> {
+  try {
+    const params = new URLSearchParams();
+    params.append('city', city);
+    const { data } = await api.get<{ total: number }>(`/listings/count?${params}`);
+    return data.total;
+  } catch {
+    return 0;
+  }
 }
 
 // =============================================================================

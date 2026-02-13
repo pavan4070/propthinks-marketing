@@ -7,10 +7,10 @@ export const siteConfig = {
   apiUrl: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000',
   
   markets: [
-    { name: 'Nellore', slug: 'nellore', propertyCount: 24 },
-    { name: 'Guntur', slug: 'guntur', propertyCount: 18 },
-    { name: 'Vijayawada', slug: 'vijayawada', propertyCount: 32 },
-    { name: 'Tirupati', slug: 'tirupati', propertyCount: 15 },
+    { name: 'Nellore', slug: 'nellore' },
+    { name: 'Guntur', slug: 'guntur' },
+    { name: 'Vijayawada', slug: 'vijayawada' },
+    { name: 'Tirupati', slug: 'tirupati' },
   ],
   
   contact: {
@@ -74,3 +74,13 @@ export const localities = {
 };
 
 export type CitySlug = keyof typeof localities;
+
+/**
+ * City hero images for marketing pages (Unsplash)
+ */
+export const cityImages: Record<CitySlug, string> = {
+  nellore: 'https://images.unsplash.com/photo-1582407947304-fd86f028f716?w=600&q=80',
+  guntur: 'https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?w=600&q=80',
+  vijayawada: 'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?w=600&q=80',
+  tirupati: 'https://images.unsplash.com/photo-1460317442991-0ec209397118?w=600&q=80',
+};

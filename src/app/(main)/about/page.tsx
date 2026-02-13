@@ -13,6 +13,10 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { siteConfig } from '@/config/site';
+import { getCityListingCount } from '@/lib/api';
+
+// Revalidate every 60 seconds for ISR
+export const revalidate = 60;
 
 export const metadata: Metadata = {
   title: 'About PropThinks | Property Management in AP',
@@ -49,7 +53,15 @@ const stats = [
   { value: '24hr', label: 'Response Time' },
 ];
 
-export default function AboutPage() {
+export default async function AboutPage() {
+  // Fetch live listing counts per city
+  const cityCounts = await Promise.all(
+    siteConfig.markets.map((m) => getCityListingCount(m.slug))
+  );
+  const marketsWithCounts = siteConfig.markets.map((m, i) => ({
+    ...m,
+    listingCount: cityCounts[i],
+  }));
   return (
     <div className="min-h-screen">
       {/* Hero Section */}
@@ -213,7 +225,7 @@ export default function AboutPage() {
           </div>
           
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {siteConfig.markets.map((market) => (
+            {marketsWithCounts.map((market) => (
               <Link
                 key={market.slug}
                 href={`/${market.slug}`}
@@ -223,7 +235,7 @@ export default function AboutPage() {
                   <MapPin className="h-5 w-5 text-[#1fb6e0]" />
                   <h3 className="text-lg font-semibold text-gray-900">{market.name}</h3>
                 </div>
-                <p className="text-gray-600">{market.propertyCount}+ properties</p>
+                <p className="text-gray-600">{market.listingCount} {market.listingCount === 1 ? 'property' : 'properties'}</p>
                 <div className="mt-4 flex items-center text-[#1fb6e0] font-medium group-hover:underline">
                   Explore
                   <ArrowRight className="ml-1 h-4 w-4" />

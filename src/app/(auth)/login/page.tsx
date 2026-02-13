@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { Suspense, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useAuth } from '@/contexts/AuthContext';
 
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { login } = useAuth();
@@ -130,9 +130,9 @@ export default function LoginPage() {
                   Remember me
                 </label>
               </div>
-              <Link href="/forgot-password" className="text-sm text-[#1fb6e0] hover:underline">
+              <span className="text-sm text-gray-500 cursor-not-allowed">
                 Forgot password?
-              </Link>
+              </span>
             </div>
 
             <Button
@@ -199,5 +199,13 @@ export default function LoginPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense>
+      <LoginForm />
+    </Suspense>
   );
 }

@@ -4,9 +4,8 @@ import { ArrowRight, CheckCircle, Shield, Headphones, Home } from 'lucide-react'
 import { Button } from '@/components/ui/button';
 import { PropertyCard } from '@/components/property/PropertyCard';
 import { SearchBar } from '@/components/property/SearchBar';
-import { cityImages } from '@/data/mock-properties';
-import { getNewestListings, type PropertyListing } from '@/lib/api';
-import { siteConfig } from '@/config/site';
+import { getNewestListings, getCityListingCount, type PropertyListing } from '@/lib/api';
+import { siteConfig, cityImages } from '@/config/site';
 
 // Revalidate every 60 seconds
 export const revalidate = 60;
@@ -71,8 +70,17 @@ async function getFeaturedProperties(): Promise<PropertyListing[]> {
 }
 
 export default async function HomePage() {
-  // Get featured properties from API (with fallback)
-  const featuredProperties = await getFeaturedProperties();
+  // Get featured properties and city counts from API
+  const [featuredProperties, ...cityCounts] = await Promise.all([
+    getFeaturedProperties(),
+    ...siteConfig.markets.map((m) => getCityListingCount(m.slug)),
+  ]);
+
+  // Build market data with live counts
+  const marketsWithCounts = siteConfig.markets.map((m, i) => ({
+    ...m,
+    listingCount: cityCounts[i],
+  }));
 
   return (
     <>
@@ -235,7 +243,7 @@ export default async function HomePage() {
           </div>
 
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-8 max-w-6xl mx-auto">
-            {siteConfig.markets.map((market) => (
+            {marketsWithCounts.map((market) => (
               <Link 
                 key={market.slug}
                 href={`/${market.slug}`}
@@ -250,7 +258,7 @@ export default async function HomePage() {
                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
                 <div className="absolute bottom-0 left-0 right-0 p-6">
                   <h3 className="text-white font-bold text-xl mb-1">{market.name}</h3>
-                  <p className="text-white/90 text-base">{market.propertyCount} properties</p>
+                  <p className="text-white/90 text-base">{market.listingCount} {market.listingCount === 1 ? 'property' : 'properties'}</p>
                 </div>
               </Link>
             ))}
