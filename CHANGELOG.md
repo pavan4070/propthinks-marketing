@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] - 2026-02-13
 
+### Fixed - OTP API Contract Mismatch (February 13, 2026)
+
+**Issue:** Signup OTP request failed with 422 validation error from backend.
+
+**Root Cause:** Frontend was sending `{ email, purpose }` but backend expects `{ identifier, method, purpose }` per the verification API contract.
+
+**Fix:** 
+- Updated `OTPRequest` interface in `src/lib/api.ts`:
+  - Added `identifier` field (email or phone)
+  - Added `method` field ('email' | 'whatsapp')
+  - Changed `purpose` to support 'login' and 'reset' (not just 'signup' and 'password_reset')
+- Updated `requestOTP` call in `src/app/(auth)/signup/page.tsx` to send all required fields
+
+**Files Changed:**
+- `src/lib/api.ts` (OTPRequest interface & requestOTP function)
+- `src/app/(auth)/signup/page.tsx` (handleRequestOTP function)
+
+**Testing:** Verified end-to-end signup flow with real email (pavan4070@gmail.com). OTP sent successfully, user created and auto-logged in, visit scheduled successfully (ops_ref: VPTH0007).
+
+---
+
 ### Added - Authentication System (CRITICAL)
 - **Complete authentication integration**: Marketing site now handles user signup/login locally
   - Created `AuthContext` provider for global authentication state management
