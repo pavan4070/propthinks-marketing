@@ -563,16 +563,20 @@ export default function PropertyDetailPage() {
                     <Check className="h-8 w-8 text-green-600" />
                   </div>
                   <h3 className="text-lg font-semibold text-gray-900 mb-2">Request Received!</h3>
-                  <p className="text-gray-500 text-sm mb-4">
+                  <p className="text-gray-500 text-sm mb-6">
                     Our team will contact you shortly to arrange a visit.
                   </p>
-                  <Button
-                    variant="outline"
-                    onClick={() => setFormSubmitted(false)}
-                    className="text-sm"
-                  >
-                    Submit another request
-                  </Button>
+                  <div className="space-y-2">
+                    <Button
+                      onClick={() => router.push('/properties')}
+                      className="w-full bg-[#1fb6e0] hover:bg-[#1fb6e0]/90 text-white"
+                    >
+                      Browse More Properties
+                    </Button>
+                    <p className="text-xs text-gray-400 mt-3">
+                      You can schedule visits for different properties. Max 2 active visits at a time.
+                    </p>
+                  </div>
                 </div>
               )}
             </div>

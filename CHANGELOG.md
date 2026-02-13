@@ -7,6 +7,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] - 2026-02-13
 
+### Fixed - Authentication State Not Showing in Header (February 13, 2026)
+
+**Issue:** After successful signup and login, user remained logged in (localStorage had access token and user data) but the header still displayed "Login" and "Sign Up" buttons instead of showing the user's name and logout button.
+
+**Root Cause:** Header component (`src/components/layout/Header.tsx`) was not integrated with AuthContext. It rendered static Login/Sign Up buttons regardless of authentication state.
+
+**Fix:**
+- Imported `useAuth` hook and `useRouter` in Header component
+- Added `isAuthenticated`, `user`, and `logout` from AuthContext
+- Conditionally rendered header based on authentication state:
+  - **Not authenticated**: Show Login and Sign Up buttons (existing behavior)
+  - **Authenticated**: Show user avatar (first letter of name), full name, and Logout button
+- Added `handleLogout` function that calls `logout()` and redirects to homepage
+- Applied same logic to both desktop and mobile navigation
+
+**Files Changed:**
+- `src/components/layout/Header.tsx` (added Auth Context integration, conditional rendering)
+
+**Testing:** Verified with Playwright that after signup, header now correctly shows "Pavan Kumar" with logout button instead of Login/Sign Up buttons.
+
+---
+
+### Fixed - Confusing "Submit another request" Button After Visit Scheduling (February 13, 2026)
+
+**Issue:** After successfully scheduling a visit, users saw a "Submit another request" button that allowed them to schedule multiple visits for the same property, violating business rules (max 2 active visits per user, cannot schedule duplicate visits for same property).
+
+**Root Cause:** Success state in property detail page (`src/app/(main)/properties/[id]/page.tsx`) had a button that reset the form (`setFormSubmitted(false)`), allowing users to resubmit immediately.
+
+**Fix:**
+- Removed "Submit another request" button from success state
+- Replaced with "Browse More Properties" button that navigates to `/properties` page
+- Added helpful text: "You can schedule visits for different properties. Max 2 active visits at a time."
+- This guides users to explore other properties while enforcing business rules
+
+**Files Changed:**
+- `src/app/(main)/properties/[id]/page.tsx` (updated success state UI)
+
+**Testing:** Verified with Playwright that after scheduling visit, user sees "Browse More Properties" button and business rule guidance text.
+
+---
+
 ### Fixed - OTP API Contract Mismatch (February 13, 2026)
 
 **Issue:** Signup OTP request failed with 422 validation error from backend.
