@@ -8,7 +8,7 @@ import { scheduleVisitSchema, type ScheduleVisitInput } from '@/lib/validations'
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { scheduleVisit } from '@/lib/api';
+import { schedulePropertyVisit } from '@/lib/api';
 
 interface ScheduleVisitFormProps {
   propertyId: string;
@@ -36,7 +36,14 @@ export function ScheduleVisitForm({ propertyId, propertyName }: ScheduleVisitFor
     setMessage(null);
 
     try {
-      await scheduleVisit(data);
+      await schedulePropertyVisit({
+        property_id: parseInt(propertyId, 10) || 0,
+        visit_type: 'rental',
+        requested_date: data.preferred_date.split('T')[0],
+        requested_time_slot: 'Morning (10 AM - 12 PM)',
+        visitor_phone: data.phone,
+        visitor_notes: data.message || `Name: ${data.name}, Email: ${data.email}`,
+      });
       setMessage({
         type: 'success',
         text: 'Visit request submitted! Our team will contact you shortly.',
