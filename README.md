@@ -98,11 +98,15 @@ NODE_ENV=development
 Production environment (`.env.production`):
 
 ```bash
-NEXT_PUBLIC_API_URL=https://propthinks-backend-production.up.railway.app/api/v1
+NEXT_PUBLIC_API_URL=https://web-production-43694.up.railway.app/api/v1
 NEXT_PUBLIC_SITE_URL=https://www.propthinks.com
 NEXT_PUBLIC_AUTH_APP_URL=https://app.propthinks.com
 NODE_ENV=production
 ```
+
+**Railway Backend URL:** `https://web-production-43694.up.railway.app`
+
+> **Note:** The `.env.production` file is committed to git and automatically loaded by Next.js during Vercel production builds. No manual environment variable configuration needed in Vercel dashboard for these variables.
 
 ## Current Features
 
@@ -146,19 +150,47 @@ Use Tailwind CSS with utility classes:
 </div>
 ```
 
-## Deployment (Vercel)
+## Deployment
 
-### Via CLI
+### Production Stack
+- **Frontend:** Vercel (this repository)
+- **Backend:** Railway (`https://web-production-43694.up.railway.app`)
+- **Database:** Supabase PostgreSQL
+
+### Vercel Deployment
+
+#### Via GitHub (Recommended)
+1. Connect repository to Vercel
+2. Framework: Next.js (auto-detected)
+3. Build settings:
+   - **Build Command:** `npm run build`
+   - **Output Directory:** `.next` (auto-detected)
+   - **Install Command:** `npm install`
+   - **Node.js Version:** 24.x
+4. Push to `main` branch → auto-deploy
+
+#### Environment Variables
+**Backend URL:** Automatically loaded from `.env.production` (committed to git).
+
+The production backend is hosted on Railway:
+```
+NEXT_PUBLIC_API_URL=https://web-production-43694.up.railway.app/api/v1
+```
+
+#### via CLI
 ```bash
 npm install -g vercel
 vercel          # Preview deployment
 vercel --prod   # Production deployment
 ```
 
-### Via GitHub
-1. Connect repository to Vercel
-2. Configure environment variables in Vercel dashboard
-3. Auto-deploy on push to main branch
+### Troubleshooting
+
+**Build-time API errors:** During Vercel builds, API calls may fail with 500 errors if the Railway backend is not accessible. This is expected and non-breaking - the site will still deploy successfully with empty states. At runtime, API calls will work normally.
+
+**CORS issues:** If you see CORS errors in browser console, verify that the Railway backend has the marketing site domain (`https://www.propthinks.com`) in its CORS allowed origins.
+
+**Environment variables not working:** Next.js automatically loads `.env.production` during production builds. If you need to override these values, add them to Vercel Project Settings → Environment Variables.
 
 ### Build Configuration
 - **Framework:** Next.js (auto-detected)
