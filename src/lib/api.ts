@@ -333,22 +333,72 @@ export interface TenantLease {
   status: string;
 }
 
+export interface TenantDashboardResponse {
+  lifecycleState: string;
+  completedVisit?: {
+    listing_public_id?: string;
+    property_public_id?: string;
+  } | null;
+}
+
 /**
- * Check if tenant has an active lease
- * Used to determine if tenant should be redirected to auth app
- * Returns true if tenant has active lease (is an ACTIVE_TENANT)
+ * Tenant lifecycle states that require the authenticated app
+ * - APPLIED: Application submitted, tracking status
+ * - APPROVED: Approved, awaiting deposit/signing
+ * - ACTIVE_TENANT: Active lease, paying rent
+ * - MOVING_OUT: Move-out checklist in progress
+ * - PAST_TENANT: Historical tenant data access
  */
-export async function checkTenantHasActiveLease(): Promise<boolean> {
+const AUTH_APP_LIFECYCLE_STATES = [
+  'APPLIED',
+  'APPROVED', 
+  'ACTIVE_TENANT',
+  'MOVING_OUT',
+  'PAST_TENANT'
+];
+
+/**
+ * Check if tenant needs to use the authenticated app
+ * Based on lifecycle state from /tenant/dashboard
+ * 
+ * Returns true if tenant is past the exploration phase:
+ * - Has submitted an application (APPLIED)
+ * - Has been approved (APPROVED) 
+ * - Is an active tenant (ACTIVE_TENANT)
+ * - Is moving out (MOVING_OUT)
+ * - Is a past tenant (PAST_TENANT)
+ * 
+ * Returns false for exploring tenants:
+ * - NEW_SIGNUP: Just registered
+ * - VISIT_SCHEDULED: Has scheduled visits
+ * - VISIT_COMPLETED: Ready to apply (still on marketing site)
+ */
+export async function checkTenantNeedsAuthApp(): Promise<boolean> {
   try {
-    const { data } = await api.get<TenantLease[]>('/leases/tenant/leases', {
+    const { data } = await api.get<TenantDashboardResponse>('/tenant/dashboard', {
       withCredentials: true,
     });
-    // Check if any lease is active
-    return data.some(lease => lease.status === 'active');
+    return AUTH_APP_LIFECYCLE_STATES.includes(data.lifecycleState);
   } catch (error) {
-    console.error('Failed to check tenant lease status:', error);
-    return false;
+    console.error('Failed to check tenant lifecycle state:', error);
+    // If dashboard fails, fall back to lease check
+    try {
+      const { data: leases } = await api.get<TenantLease[]>('/leases/tenant/leases', {
+        withCredentials: true,
+      });
+      return leases.some(lease => lease.status === 'active');
+    } catch {
+      return false;
+    }
   }
+}
+
+/**
+ * @deprecated Use checkTenantNeedsAuthApp() instead
+ * Check if tenant has an active lease
+ */
+export async function checkTenantHasActiveLease(): Promise<boolean> {
+  return checkTenantNeedsAuthApp();
 }
 
 // =============================================================================

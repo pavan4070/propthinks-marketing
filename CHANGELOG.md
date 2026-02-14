@@ -7,6 +7,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] - 2026-02-13
 
+### Improved - Lifecycle-Based Smart Login Redirect (February 13, 2026)
+
+**Enhancement:** Login redirect now checks tenant **lifecycle state** instead of just active lease status. This ensures tenants who have submitted applications, been approved, or are in the move-out process are correctly redirected to the auth app.
+
+**Previous Logic (Incomplete):**
+- Only checked for `active` lease status
+- Missed tenants in APPLIED, APPROVED, MOVING_OUT states
+
+**New Lifecycle-Based Redirect:**
+| Lifecycle State | Redirect To | Rationale |
+|-----------------|-------------|----------|
+| `NEW_SIGNUP` | Marketing site `/profile` | Still exploring |
+| `VISIT_SCHEDULED` | Marketing site `/profile` | Waiting for visit |
+| `VISIT_COMPLETED` | Marketing site `/profile` | Ready to apply |
+| `APPLIED` | Auth app `/tenant/dashboard` | Application tracking |
+| `APPROVED` | Auth app `/tenant/dashboard` | Awaiting deposit/signing |
+| `ACTIVE_TENANT` | Auth app `/tenant/dashboard` | Pay rent, manage lease |
+| `MOVING_OUT` | Auth app `/tenant/dashboard` | Move-out checklist |
+| `PAST_TENANT` | Auth app `/tenant/dashboard` | Historical access |
+
+**Files Modified:**
+- `src/lib/api.ts` - Added `checkTenantNeedsAuthApp()` using `/tenant/dashboard` lifecycle state
+- `src/app/(auth)/login/page.tsx` - Updated to use `checkTenantNeedsAuthApp()`
+
+---
+
+### Fixed - Apply for Property Redirect (February 13, 2026)
+
+**Bug:** "Apply for Property" button on profile page redirected to property detail page instead of auth app's application flow.
+
+**Fix:** Button now redirects to `app.propthinks.com/tenant/apply/{listingId}` with proper query params.
+
+**Files Modified:**
+- `src/app/(main)/profile/page.tsx` - Fixed `handleApplyForProperty()` to redirect to auth app
+
+---
+
 ### Added - Smart Login Redirect (February 13, 2026)
 
 **Feature:** Marketing site login now intelligently redirects users based on their role and tenant lifecycle status.

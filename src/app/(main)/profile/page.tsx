@@ -3,6 +3,8 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
+
+const AUTH_APP_URL = process.env.NEXT_PUBLIC_AUTH_APP_URL || 'https://app.propthinks.com';
 import { 
   User, 
   Mail, 
@@ -146,9 +148,14 @@ export default function ProfilePage() {
   };
 
   const handleApplyForProperty = (propertyPublicId: string, listingPublicId?: string) => {
-    // Navigate to token payment page (to be implemented)
-    // For now, navigate to property detail page
-    router.push(`/properties/${listingPublicId || propertyPublicId}`);
+    // Redirect to auth app's application flow
+    // Once tenant applies, they'll be redirected to auth app on next login
+    if (listingPublicId) {
+      window.location.href = `${AUTH_APP_URL}/tenant/apply/${listingPublicId}?propertyId=${propertyPublicId}`;
+    } else {
+      // Fallback: redirect to tenant dashboard in auth app
+      window.location.href = `${AUTH_APP_URL}/tenant/dashboard`;
+    }
   };
 
   if (authLoading || !user) {

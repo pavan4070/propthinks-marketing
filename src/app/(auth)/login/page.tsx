@@ -8,7 +8,7 @@ import { Eye, EyeOff, Mail, Lock, ArrowRight, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useAuth } from '@/contexts/AuthContext';
-import { checkTenantHasActiveLease } from '@/lib/api';
+import { checkTenantNeedsAuthApp } from '@/lib/api';
 
 const AUTH_APP_URL = process.env.NEXT_PUBLIC_AUTH_APP_URL || 'https://app.propthinks.com';
 
@@ -56,17 +56,17 @@ function LoginForm() {
         return;
       }
       
-      // For tenants, check if they have an active lease
+      // For tenants, check lifecycle state to determine redirect
       if (userData?.role === 'tenant') {
-        const hasActiveLease = await checkTenantHasActiveLease();
-        if (hasActiveLease) {
-          // Active tenants go to auth app
+        const needsAuthApp = await checkTenantNeedsAuthApp();
+        if (needsAuthApp) {
+          // Tenants with applications, active leases, or past tenants go to auth app
           window.location.href = `${AUTH_APP_URL}/tenant/dashboard`;
           return;
         }
       }
       
-      // Exploring tenants (no active lease) stay on marketing site
+      // Exploring tenants (NEW_SIGNUP, VISIT_SCHEDULED, VISIT_COMPLETED) stay on marketing site
       const returnUrl = searchParams.get('return') || '/profile';
       router.push(returnUrl);
     } catch (err: any) {
