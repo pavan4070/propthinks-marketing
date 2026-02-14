@@ -38,3 +38,20 @@ export const propertySearchSchema = z.object({
 });
 
 export type PropertySearchInput = z.infer<typeof propertySearchSchema>;
+
+// Signup form validation
+export const signupSchema = z.object({
+  firstName: z.string().min(1, 'First name is required').max(50, 'First name too long').trim(),
+  lastName: z.string().min(1, 'Last name is required').max(50, 'Last name too long').trim(),
+  email: z.string().email('Invalid email address').toLowerCase(),
+  phone: z
+    .string()
+    .regex(/^[6-9]\d{9}$/, 'Invalid phone number (10 digits, starting with 6-9)'),
+  city: z.string().min(1, 'Please select a city'),
+  password: z
+    .string()
+    .min(8, 'Password must be at least 8 characters')
+    .max(100, 'Password too long'),
+});
+
+export type SignupInput = z.infer<typeof signupSchema>;

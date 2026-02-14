@@ -5,7 +5,34 @@ All notable changes to the PropThinks Marketing Site will be documented in this 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased] - 2026-02-13
+## [Unreleased] - 2026-02-14
+
+### Fixed - Client-Side Signup Form Validation (February 14, 2026)
+
+**Bug:** Password validation error only surfaced AFTER OTP verification, leading to poor UX where users go through the email verification flow only to have signup fail due to password being too short.
+
+**Root Cause:** No client-side validation before OTP request. The form only had `required` HTML attributes but no Zod schema validation.
+
+**Solution:** Added comprehensive client-side validation using Zod schema BEFORE sending OTP:
+- Password: Minimum 8 characters
+- Phone: Indian format (10 digits starting with 6-9)
+- Email: Valid email format
+- First/Last Name: Required, trimmed
+- City: Required selection
+
+**UX Improvements:**
+- Inline field-level error messages (red text under each field)
+- Red border highlight on invalid fields
+- Errors clear when user starts typing in the field
+- Validation runs before OTP request, not after
+
+**Files Modified:**
+- `src/lib/validations.ts` - Added `signupSchema` Zod validation
+- `src/app/(auth)/signup/page.tsx` - Integrated validation with form fields
+
+---
+
+## [Released] - 2026-02-13
 
 ### Improved - Lifecycle-Based Smart Login Redirect (February 13, 2026)
 

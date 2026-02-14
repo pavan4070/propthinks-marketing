@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useAuth } from '@/contexts/AuthContext';
 import { requestOTP } from '@/lib/api';
+import { signupSchema } from '@/lib/validations';
 
 export default function SignupPage() {
   const router = useRouter();
@@ -29,11 +30,35 @@ export default function SignupPage() {
     password: '',
     otpCode: '',
   });
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+
+  const validateForm = (): boolean => {
+    const result = signupSchema.safeParse(formData);
+    if (!result.success) {
+      const errors: Record<string, string> = {};
+      result.error.errors.forEach((err) => {
+        const field = err.path[0] as string;
+        errors[field] = err.message;
+      });
+      setFieldErrors(errors);
+      // Show first error as main error message
+      setError(result.error.errors[0].message);
+      return false;
+    }
+    setFieldErrors({});
+    return true;
+  };
 
   const handleRequestOTP = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsLoading(true);
     setError(null);
+    
+    // Validate form before sending OTP
+    if (!validateForm()) {
+      return;
+    }
+    
+    setIsLoading(true);
     
     try {
       await requestOTP({ 
@@ -283,8 +308,13 @@ export default function SignupPage() {
                   autoComplete="given-name" 
                   required
                   value={formData.firstName}
-                  onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
+                  onChange={(e) => {
+                    setFormData({ ...formData, firstName: e.target.value });
+                    if (fieldErrors.firstName) setFieldErrors({ ...fieldErrors, firstName: '' });
+                  }}
+                  className={fieldErrors.firstName ? 'border-red-500' : ''}
                 />
+                {fieldErrors.firstName && <p className="mt-1 text-xs text-red-500">{fieldErrors.firstName}</p>}
               </div>
               <div>
                 <label htmlFor="lastName" className="block text-sm font-medium text-gray-700 mb-1">
@@ -296,8 +326,13 @@ export default function SignupPage() {
                   autoComplete="family-name" 
                   required
                   value={formData.lastName}
-                  onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
+                  onChange={(e) => {
+                    setFormData({ ...formData, lastName: e.target.value });
+                    if (fieldErrors.lastName) setFieldErrors({ ...fieldErrors, lastName: '' });
+                  }}
+                  className={fieldErrors.lastName ? 'border-red-500' : ''}
                 />
+                {fieldErrors.lastName && <p className="mt-1 text-xs text-red-500">{fieldErrors.lastName}</p>}
               </div>
             </div>
 
@@ -311,13 +346,17 @@ export default function SignupPage() {
                   id="email"
                   type="email"
                   placeholder="you@example.com"
-                  className="pl-10"
+                  className={`pl-10 ${fieldErrors.email ? 'border-red-500' : ''}`}
                   autoComplete="email"
                   required
                   value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  onChange={(e) => {
+                    setFormData({ ...formData, email: e.target.value });
+                    if (fieldErrors.email) setFieldErrors({ ...fieldErrors, email: '' });
+                  }}
                 />
               </div>
+              {fieldErrors.email && <p className="mt-1 text-xs text-red-500">{fieldErrors.email}</p>}
             </div>
 
             <div>
@@ -330,13 +369,17 @@ export default function SignupPage() {
                   id="phone"
                   type="tel"
                   placeholder="9876543210"
-                  className="pl-10"
+                  className={`pl-10 ${fieldErrors.phone ? 'border-red-500' : ''}`}
                   autoComplete="tel"
                   required
                   value={formData.phone}
-                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                  onChange={(e) => {
+                    setFormData({ ...formData, phone: e.target.value });
+                    if (fieldErrors.phone) setFieldErrors({ ...fieldErrors, phone: '' });
+                  }}
                 />
               </div>
+              {fieldErrors.phone && <p className="mt-1 text-xs text-red-500">{fieldErrors.phone}</p>}
             </div>
 
             <div className="grid grid-cols-2 gap-4">
@@ -350,8 +393,11 @@ export default function SignupPage() {
                     id="city"
                     required
                     value={formData.city}
-                    onChange={(e) => setFormData({ ...formData, city: e.target.value })}
-                    className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#1fb6e0] focus:border-transparent"
+                    onChange={(e) => {
+                      setFormData({ ...formData, city: e.target.value });
+                      if (fieldErrors.city) setFieldErrors({ ...fieldErrors, city: '' });
+                    }}
+                    className={`w-full pl-10 pr-3 py-2 border rounded-lg focus:ring-2 focus:ring-[#1fb6e0] focus:border-transparent ${fieldErrors.city ? 'border-red-500' : 'border-gray-300'}`}
                   >
                     <option value="">Select city</option>
                     <option value="Nellore">Nellore</option>
@@ -360,6 +406,7 @@ export default function SignupPage() {
                     <option value="Tirupati">Tirupati</option>
                   </select>
                 </div>
+                {fieldErrors.city && <p className="mt-1 text-xs text-red-500">{fieldErrors.city}</p>}
               </div>
               <div>
                 <label htmlFor="state" className="block text-sm font-medium text-gray-700 mb-1">
@@ -384,11 +431,14 @@ export default function SignupPage() {
                   id="password"
                   type={showPassword ? 'text' : 'password'}
                   placeholder="••••••••"
-                  className="pl-10 pr-10"
+                  className={`pl-10 pr-10 ${fieldErrors.password ? 'border-red-500' : ''}`}
                   autoComplete="new-password"
                   required
                   value={formData.password}
-                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                  onChange={(e) => {
+                    setFormData({ ...formData, password: e.target.value });
+                    if (fieldErrors.password) setFieldErrors({ ...fieldErrors, password: '' });
+                  }}
                 />
                 <button
                   type="button"
@@ -402,9 +452,11 @@ export default function SignupPage() {
                   )}
                 </button>
               </div>
-              <p className="mt-1 text-xs text-gray-500">
-                Must be at least 8 characters
-              </p>
+              {fieldErrors.password ? (
+                <p className="mt-1 text-xs text-red-500">{fieldErrors.password}</p>
+              ) : (
+                <p className="mt-1 text-xs text-gray-500">Must be at least 8 characters</p>
+              )}
             </div>
 
             <div className="flex items-start">
